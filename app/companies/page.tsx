@@ -2,35 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import ThemeToggle from "../components/theme-toggle";
 
 type Company = {
-  id: string;
+  id: number;
   name: string;
-  recordCount: number;
-  averageBaseSalary: string | number | null;
-  averageBonus: string | number | null;
-  averageStock: string | number | null;
-  averageTotalCompensation: string | number | null;
-  highestTotalCompensation: string | number | null;
+  normalizedName?: string;
+  compensationCount?: number;
+  _count?: {
+    compensations?: number;
+  };
 };
-
-function formatSalary(value: string | number | null) {
-  if (value === null || value === undefined) {
-    return "—";
-  }
-
-  const amount = Number(value);
-
-  if (!Number.isFinite(amount)) {
-    return "—";
-  }
-
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
 
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -44,20 +26,20 @@ export default function CompaniesPage() {
         setLoading(true);
         setError("");
 
-        const response = await fetch("/api/companies", {
-          cache: "no-store",
-        });
+        const response = await fetch("/api/companies");
 
         if (!response.ok) {
-          throw new Error("Failed to fetch companies");
+          throw new Error("Failed to load companies");
         }
 
         const result = await response.json();
 
-        setCompanies(result.data);
+        const data = result.data ?? result.companies ?? result;
+
+        setCompanies(Array.isArray(data) ? data : []);
       } catch (err) {
-        console.error("Companies fetch failed:", err);
-        setError("Unable to load company intelligence.");
+        console.error(err);
+        setError("Unable to load companies.");
       } finally {
         setLoading(false);
       }
@@ -67,224 +49,231 @@ export default function CompaniesPage() {
   }, []);
 
   const filteredCompanies = companies.filter((company) =>
-    company.name
-      .toLowerCase()
-      .includes(search.toLowerCase().trim()),
+    company.name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <main className="min-h-screen bg-[#08090b] text-white">
-      {/* ==================== NAVIGATION ==================== */}
-      <nav className="border-b border-white/10">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+    <main className="min-h-screen bg-background text-foreground transition-colors duration-200">
+      {/* Navigation */}
+      <nav className="border-b border-border bg-background">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-8 py-6">
           <Link href="/" className="group">
-            <h1 className="text-xl font-semibold tracking-tight">
-              Comp<span className="text-violet-400">Scope</span>
-            </h1>
+            <div className="text-2xl font-bold tracking-tight">
+              Comp<span className="text-accent">Scope</span>
+            </div>
 
-            <p className="text-xs text-zinc-500">
+            <div className="text-sm text-muted">
               Compensation Intelligence
-            </p>
+            </div>
           </Link>
 
-          <div className="flex items-center gap-6 text-sm text-zinc-400">
+          <div className="flex items-center gap-8">
             <Link
               href="/"
-              className="transition hover:text-white"
+              className="text-sm font-medium text-muted transition-colors hover:text-accent"
             >
               Explorer
             </Link>
 
             <Link
               href="/companies"
-              className="text-white"
+              className="text-sm font-medium text-accent"
             >
               Companies
             </Link>
 
             <Link
               href="/compare"
-              className="transition hover:text-white"
+              className="text-sm font-medium text-muted transition-colors hover:text-accent"
             >
               Compare
             </Link>
+
+            <ThemeToggle />
           </div>
         </div>
       </nav>
 
-      {/* ==================== HERO ==================== */}
-      <section className="mx-auto max-w-7xl px-6 pb-10 pt-16">
-        <div className="max-w-3xl">
-          <div className="mb-4 inline-flex rounded-full border border-violet-400/20 bg-violet-400/10 px-3 py-1 text-xs text-violet-300">
+      {/* Main content */}
+      <div className="mx-auto max-w-7xl px-8 py-16">
+        {/* Header */}
+        <div className="mb-12 max-w-3xl">
+          <div className="mb-5 inline-flex rounded-full border border-accent/20 bg-accent-soft px-4 py-2 text-sm font-medium text-accent">
             Company Intelligence
           </div>
 
-          <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
-            See how companies
-            <span className="text-violet-400">
-              {" "}
-              actually compensate.
-            </span>
-          </h2>
+          <h1 className="text-5xl font-bold tracking-tight md:text-6xl">
+            Explore compensation
+            <br />
+            <span className="text-accent">company by company.</span>
+          </h1>
 
-          <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-400">
-            Compare average compensation, equity, bonuses and
-            reported salary records across companies.
+          <p className="mt-6 max-w-2xl text-lg leading-8 text-muted">
+            Compare compensation patterns across companies, engineering levels,
+            roles and locations.
           </p>
         </div>
-      </section>
 
-      {/* ==================== SEARCH ==================== */}
-      <section className="mx-auto max-w-7xl px-6">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-          <label className="mb-2 block text-xs font-medium text-zinc-500">
+        {/* Search */}
+        <div className="mb-10 max-w-2xl">
+          <label
+            htmlFor="company-search"
+            className="mb-2 block text-sm font-medium text-muted"
+          >
             SEARCH COMPANIES
           </label>
 
           <input
+            id="company-search"
+            type="text"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by company name..."
-            className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none transition placeholder:text-zinc-600 focus:border-violet-400/50"
+            placeholder="Search company..."
+            className="
+              w-full
+              rounded-xl
+              border
+              border-border
+              bg-surface
+              px-5
+              py-4
+              text-[15px]
+              text-foreground
+              placeholder:text-muted
+              transition-all
+              duration-200
+              focus:border-accent
+              focus:ring-4
+              focus:ring-accent-soft
+            "
           />
         </div>
-      </section>
 
-      {/* ==================== COMPANY GRID ==================== */}
-      <section className="mx-auto max-w-7xl px-6 py-8">
-        {loading ? (
-          <div className="rounded-2xl border border-white/10 p-12 text-center text-sm text-zinc-500">
-            Loading company intelligence...
+        {/* Loading */}
+        {loading && (
+          <div className="rounded-2xl border border-border bg-surface p-10 text-center">
+            <p className="text-muted">Loading companies...</p>
           </div>
-        ) : error ? (
-          <div className="rounded-2xl border border-red-400/10 p-12 text-center">
-            <p className="text-sm text-red-400">{error}</p>
+        )}
+
+        {/* Error */}
+        {!loading && error && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300">
+            {error}
           </div>
-        ) : filteredCompanies.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 p-12 text-center text-sm text-zinc-500">
-            No companies found.
+        )}
+
+        {/* Empty state */}
+        {!loading && !error && filteredCompanies.length === 0 && (
+          <div className="rounded-2xl border border-border bg-surface p-12 text-center">
+            <div className="mb-3 text-3xl">⌕</div>
+
+            <h2 className="text-xl font-semibold">
+              No companies found
+            </h2>
+
+            <p className="mt-2 text-muted">
+              Try searching for a different company.
+            </p>
           </div>
-        ) : (
+        )}
+
+        {/* Company grid */}
+        {!loading && !error && filteredCompanies.length > 0 && (
           <>
             <div className="mb-5 flex items-center justify-between">
               <div>
-                <h3 className="font-semibold">
+                <h2 className="text-xl font-semibold">
                   Companies
-                </h3>
+                </h2>
 
-                <p className="mt-1 text-xs text-zinc-500">
-                  {filteredCompanies.length} companies
+                <p className="mt-1 text-sm text-muted">
+                  {filteredCompanies.length}{" "}
+                  {filteredCompanies.length === 1
+                    ? "company"
+                    : "companies"}
                 </p>
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {filteredCompanies.map((company) => (
-                <Link
-                  key={company.id}
-                  href={`/companies/${company.id}`}
-                  className="group rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition hover:-translate-y-0.5 hover:border-violet-400/30 hover:bg-white/[0.04]"
-                >
-                  {/* Company header */}
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-sm font-semibold text-violet-300">
-                        {company.name
-                          .slice(0, 2)
-                          .toUpperCase()}
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredCompanies.map((company) => {
+                const compensationCount =
+                  company.compensationCount ??
+                  company._count?.compensations ??
+                  0;
+
+                return (
+                  <Link
+                    key={company.id}
+                    href={`/companies/${company.id}`}
+                    className="
+                      group
+                      rounded-2xl
+                      border
+                      border-border
+                      bg-surface
+                      p-6
+                      transition-all
+                      duration-200
+                      hover:-translate-y-0.5
+                      hover:border-accent/40
+                      hover:shadow-sm
+                    "
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div
+                        className="
+                          flex
+                          h-12
+                          w-12
+                          shrink-0
+                          items-center
+                          justify-center
+                          rounded-xl
+                          bg-accent-soft
+                          text-lg
+                          font-bold
+                          text-accent
+                        "
+                      >
+                        {company.name.charAt(0).toUpperCase()}
                       </div>
 
-                      <div>
-                        <h4 className="font-semibold">
-                          {company.name}
-                        </h4>
-
-                        <p className="text-xs text-zinc-500">
-                          {company.recordCount} compensation records
-                        </p>
-                      </div>
+                      <span
+                        className="
+                          text-xl
+                          text-muted
+                          transition-transform
+                          duration-200
+                          group-hover:translate-x-1
+                          group-hover:text-accent
+                        "
+                      >
+                        →
+                      </span>
                     </div>
 
-                    <span className="text-zinc-600 transition group-hover:text-violet-300">
-                      →
-                    </span>
-                  </div>
+                    <h3 className="mt-6 text-xl font-semibold">
+                      {company.name}
+                    </h3>
 
-                  {/* Main metric */}
-                  <div className="mt-6">
-                    <p className="text-xs uppercase tracking-wide text-zinc-500">
-                      Average total compensation
-                    </p>
+                    <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+                      <span className="text-sm text-muted">
+                        Compensation records
+                      </span>
 
-                    <p className="mt-1 text-2xl font-semibold tracking-tight text-violet-300">
-                      {formatSalary(
-                        company.averageTotalCompensation,
-                      )}
-                    </p>
-                  </div>
-
-                  {/* Breakdown */}
-                  <div className="mt-6 grid grid-cols-3 gap-2">
-                    <div className="rounded-xl border border-white/5 bg-black/20 p-3">
-                      <p className="text-[10px] uppercase text-zinc-600">
-                        Base
-                      </p>
-
-                      <p className="mt-1 text-xs text-zinc-300">
-                        {formatSalary(
-                          company.averageBaseSalary,
-                        )}
-                      </p>
+                      <span className="text-sm font-semibold text-foreground">
+                        {compensationCount}
+                      </span>
                     </div>
-
-                    <div className="rounded-xl border border-white/5 bg-black/20 p-3">
-                      <p className="text-[10px] uppercase text-zinc-600">
-                        Stock
-                      </p>
-
-                      <p className="mt-1 text-xs text-zinc-300">
-                        {formatSalary(
-                          company.averageStock,
-                        )}
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl border border-white/5 bg-black/20 p-3">
-                      <p className="text-[10px] uppercase text-zinc-600">
-                        Bonus
-                      </p>
-
-                      <p className="mt-1 text-xs text-zinc-300">
-                        {formatSalary(
-                          company.averageBonus,
-                        )}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Highest compensation */}
-                  <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-4">
-                    <span className="text-xs text-zinc-500">
-                      Highest reported total
-                    </span>
-
-                    <span className="text-xs font-medium text-zinc-300">
-                      {formatSalary(
-                        company.highestTotalCompensation,
-                      )}
-                    </span>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
           </>
         )}
-      </section>
-
-      {/* ==================== FOOTER ==================== */}
-      <footer className="mx-auto max-w-7xl border-t border-white/10 px-6 py-8 text-xs text-zinc-600">
-        CompScope · Compensation intelligence demo
-      </footer>
+      </div>
     </main>
   );
 }
