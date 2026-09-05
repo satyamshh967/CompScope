@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import ThemeToggle from "@/app/components/theme-toggle";
 
@@ -21,36 +21,21 @@ function formatSalary(value: number) {
   }).format(value);
 }
 
-function formatCompact(value: number) {
-  if (value >= 10_000_000) {
-    return `₹${(value / 10_000_000).toFixed(1)}Cr`;
-  }
-
-  return `₹${(value / 100_000).toFixed(1)}L`;
-}
-
 export default function CompaniesPage() {
-  const [companies, setCompanies] = useState<
-    CompanyRanking[]
-  >([]);
-
+  const [companies, setCompanies] = useState<CompanyRanking[]>([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     async function loadCompanies() {
       try {
-        const response = await fetch(
-          "/api/companies/rankings",
-          {
-            cache: "no-store",
-          },
-        );
+        const response = await fetch("/api/companies/rankings", {
+          cache: "no-store",
+        });
 
         if (!response.ok) {
-          throw new Error(
-            "Failed to load company rankings",
-          );
+          throw new Error("Failed to load company rankings");
         }
 
         const result = await response.json();
@@ -66,6 +51,18 @@ export default function CompaniesPage() {
 
     loadCompanies();
   }, []);
+
+  const filteredCompanies = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    if (!query) {
+      return companies;
+    }
+
+    return companies.filter((company) =>
+      company.name.toLowerCase().includes(query),
+    );
+  }, [companies, search]);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -115,8 +112,8 @@ export default function CompaniesPage() {
         </h1>
 
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
-          Compare companies using average total
-          compensation across the synthetic demo dataset.
+          Compare companies using average total compensation
+          across the synthetic demo dataset.
         </p>
       </section>
 
@@ -148,106 +145,195 @@ export default function CompaniesPage() {
           ) : (
             <>
               <div className="border-b border-border px-5 py-4">
-                <h2 className="text-sm font-semibold">
-                  Company ranking
-                </h2>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-sm font-semibold">
+                      Company ranking
+                    </h2>
 
-                <p className="mt-1 text-xs text-muted">
-                  Ranked by average total compensation.
-                </p>
-              </div>
+                    <p className="mt-1 text-xs text-muted">
+                      Ranked by average total compensation.
+                    </p>
+                  </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] text-left text-sm">
-                  <thead className="border-b border-border bg-surface-muted">
-                    <tr className="text-xs uppercase tracking-wide text-muted">
-                      <th className="px-5 py-3.5 font-medium">
-                        Rank
-                      </th>
+                  <div className="relative w-full sm:w-72">
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
+                    >
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m20 20-4-4" />
+                    </svg>
 
-                      <th className="px-5 py-3.5 font-medium">
-                        Company
-                      </th>
+                    <input
+                      type="search"
+                      value={search}
+                      onChange={(event) =>
+                        setSearch(event.target.value)
+                      }
+                      placeholder="Search companies..."
+                      aria-label="Search companies"
+                      className="h-10 w-full rounded-lg border border-border bg-background pl-9 pr-9 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
+                    />
 
-                      <th className="px-5 py-3.5 font-medium">
-                        Records
-                      </th>
-
-                      <th className="px-5 py-3.5 font-medium">
-                        Avg. total
-                      </th>
-
-                      <th className="px-5 py-3.5 font-medium">
-                        Highest level
-                      </th>
-
-                      <th className="px-5 py-3.5 font-medium">
-                        View
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-border">
-                    {companies.map((company) => (
-                      <tr
-                        key={company.id}
-                        className="transition-colors hover:bg-surface-muted"
+                    {search && (
+                      <button
+                        type="button"
+                        onClick={() => setSearch("")}
+                        aria-label="Clear company search"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-muted transition hover:bg-surface-muted hover:text-foreground"
                       >
-                        <td className="px-5 py-4">
-                          <span
-                            className={
-                              company.rank === 1
-                                ? "font-semibold text-accent"
-                                : "text-muted"
-                            }
-                          >
-                            #{company.rank}
-                          </span>
-                        </td>
+                        <svg
+                          aria-hidden="true"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          className="h-4 w-4"
+                        >
+                          <path d="M6 6l12 12M18 6 6 18" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
 
-                        <td className="px-5 py-4">
-                          <Link
-                            href={`/companies/${company.id}`}
-                            className="font-semibold hover:text-accent"
-                          >
-                            {company.name}
-                          </Link>
-                        </td>
-
-                        <td className="px-5 py-4 text-muted">
-                          {company.records}
-                        </td>
-
-                        <td className="px-5 py-4 font-semibold">
-                          {formatSalary(
-                            company.averageTotal,
-                          )}
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <span className="rounded-md bg-accent-soft px-2 py-1 text-xs font-medium text-accent">
-                            {company.highestLevel}
-                          </span>
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <Link
-                            href={`/companies/${company.id}`}
-                            className="text-xs font-medium text-accent hover:text-accent-hover"
-                          >
-                            Intelligence →
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                {search && (
+                  <div className="mt-3 text-xs text-muted">
+                    Showing{" "}
+                    <span className="font-medium text-foreground">
+                      {filteredCompanies.length}
+                    </span>{" "}
+                    of{" "}
+                    <span className="font-medium text-foreground">
+                      {companies.length}
+                    </span>{" "}
+                    companies
+                  </div>
+                )}
               </div>
 
-              <div className="border-t border-border px-5 py-4 text-xs text-muted">
-                {companies.length} companies ranked ·
-                average total compensation shown in INR
-              </div>
+              {filteredCompanies.length === 0 ? (
+                <div className="px-5 py-14 text-center">
+                  <p className="text-sm font-medium">
+                    No companies found
+                  </p>
+
+                  <p className="mt-1 text-xs text-muted">
+                    Try searching for a different company name.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="mt-4 text-xs font-medium text-accent hover:text-accent-hover"
+                  >
+                    Clear search
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[720px] text-left text-sm">
+                      <thead className="border-b border-border bg-surface-muted">
+                        <tr className="text-xs uppercase tracking-wide text-muted">
+                          <th className="px-5 py-3.5 font-medium">
+                            Rank
+                          </th>
+
+                          <th className="px-5 py-3.5 font-medium">
+                            Company
+                          </th>
+
+                          <th className="px-5 py-3.5 font-medium">
+                            Records
+                          </th>
+
+                          <th className="px-5 py-3.5 font-medium">
+                            Avg. total
+                          </th>
+
+                          <th className="px-5 py-3.5 font-medium">
+                            Highest level
+                          </th>
+
+                          <th className="px-5 py-3.5 font-medium">
+                            View
+                          </th>
+                        </tr>
+                      </thead>
+
+                      <tbody className="divide-y divide-border">
+                        {filteredCompanies.map(
+                          (company, index) => (
+                            <tr
+                              key={company.id}
+                              className="transition-colors hover:bg-surface-muted"
+                            >
+                              <td className="px-5 py-4">
+                                <span
+                                  className={
+                                    index === 0
+                                      ? "font-semibold text-accent"
+                                      : "text-muted"
+                                  }
+                                >
+                                  #{index + 1}
+                                </span>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <Link
+                                  href={`/companies/${company.id}`}
+                                  className="font-semibold hover:text-accent"
+                                >
+                                  {company.name}
+                                </Link>
+                              </td>
+
+                              <td className="px-5 py-4 text-muted">
+                                {company.records}
+                              </td>
+
+                              <td className="px-5 py-4 font-semibold">
+                                {formatSalary(
+                                  company.averageTotal,
+                                )}
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <span className="rounded-md bg-accent-soft px-2 py-1 text-xs font-medium text-accent">
+                                  {company.highestLevel}
+                                </span>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <Link
+                                  href={`/companies/${company.id}`}
+                                  className="text-xs font-medium text-accent hover:text-accent-hover"
+                                >
+                                  Intelligence →
+                                </Link>
+                              </td>
+                            </tr>
+                          ),
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="border-t border-border px-5 py-4 text-xs text-muted">
+                    {search
+                      ? `${filteredCompanies.length} of ${companies.length} companies shown`
+                      : `${companies.length} companies ranked`}{" "}
+                    · average total compensation shown in INR
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
