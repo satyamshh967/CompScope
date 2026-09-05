@@ -1,288 +1,615 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import ThemeToggle from "../../components/theme-toggle";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import ThemeToggle from "@/app/components/theme-toggle";
 
-type Compensation = {
-  id: number;
-  baseSalary: number | string;
-  stock: number | string;
-  bonus: number | string;
-  totalCompensation: number | string;
-  currency: string;
-  role: {
-    name: string;
-  };
-  level: {
-    name: string;
-  };
-  location: {
-    city: string;
-    country: string;
-  };
+type LevelAnalytics = {
+  level: string;
+  records: number;
+  averageBase: number;
+  averageStock: number;
+  averageBonus: number;
+  averageTotal: number;
 };
 
-type Company = {
-  id: number;
-  name: string;
-  compensations: Compensation[];
+type RoleAnalytics = {
+  role: string;
+  records: number;
+  averageTotal: number;
 };
 
-function formatSalary(value: number | string, currency = "INR") {
-  const amount = Number(value);
+type LocationAnalytics = {
+  location: string;
+  records: number;
+  averageTotal: number;
+};
 
-  if (Number.isNaN(amount)) return "—";
+type AnalyticsResponse = {
+  company: {
+    id: string;
+    name: string;
+  };
 
-  if (currency === "INR") {
-    return `₹${amount.toLocaleString("en-IN", {
-      maximumFractionDigits: 0,
-    })}`;
-  }
+  summary: {
+    records: number;
+    roles: number;
+    levels: number;
+    locations: number;
+    averageBase: number;
+    averageStock: number;
+    averageBonus: number;
+    averageTotal: number;
+    highestTotal: number;
+  };
 
-  return `${currency} ${amount.toLocaleString("en-US", {
+  byLevel: LevelAnalytics[];
+  byRole: RoleAnalytics[];
+  byLocation: LocationAnalytics[];
+};
+
+function formatSalary(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
     maximumFractionDigits: 0,
-  })}`;
+  }).format(value);
 }
 
-export default function CompanyDetailPage({
+function formatCompact(value: number) {
+  if (value >= 10_000_000) {
+    return `₹${(value / 10_000_000).toFixed(1)}Cr`;
+  }
+
+  if (value >= 100_000) {
+    return `₹${(value / 100_000).toFixed(1)}L`;
+  }
+
+  return `₹${Math.round(value).toLocaleString("en-IN")}`;
+}
+
+function CustomTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{
+    name?: string;
+    value?: number;
+  }>;
+  label?: string;
+}) {
+  if (!active || !payload?.length) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-surface px-3.5 py-3 shadow-lg">
+      <p className="mb-2 text-sm font-semibold text-foreground">
+        {label}
+      </p>
+
+      <div className="space-y-1.5">
+        {payload.map((item) => (
+          <div
+            key={item.name}
+            className="flex items-center justify-between gap-6 text-xs"
+          >
+            <span className="text-muted">
+              {item.name}
+            </span>
+
+            <span className="font-medium text-foreground">
+              {formatSalary(Number(item.value))}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function CompanyPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const [company, setCompany] = useState<Company | null>(null);
+  const [analytics, setAnalytics] =
+    useState<AnalyticsResponse | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    async function loadCompany() {
+    async function loadAnalytics() {
       try {
         const { id } = await params;
 
-        const response = await fetch(`/api/companies/${id}`);
+        const response = await fetch(
+          `/api/companies/${id}/analytics`,
+          {
+            cache: "no-store",
+          },
+        );
 
         if (!response.ok) {
-          throw new Error("Company not found");
+          throw new Error(
+            "Failed to load company analytics",
+          );
         }
 
-        const result = await response.json();
+        const result =
+          (await response.json()) as AnalyticsResponse;
 
-        setCompany(result.data ?? result);
+        setAnalytics(result);
       } catch (err) {
         console.error(err);
-        setError("Unable to load company details.");
+        setError(
+          "Unable to load company intelligence.",
+        );
       } finally {
         setLoading(false);
       }
     }
 
-    loadCompany();
+    loadAnalytics();
   }, [params]);
+
+  const highestLevel = useMemo(() => {
+    if (!analytics?.byLevel.length) {
+      return null;
+    }
+
+    return [...analytics.byLevel].sort(
+      (a, b) => b.averageTotal - a.averageTotal,
+    )[0];
+  }, [analytics]);
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-background text-foreground">
+        <div className="mx-auto max-w-7xl px-5 py-16 text-sm text-muted">
+          Loading company intelligence...
+        </div>
+      </main>
+    );
+  }
+
+  if (error || !analytics) {
+    return (
+      <main className="min-h-screen bg-background text-foreground">
+        <div className="mx-auto max-w-7xl px-5 py-16">
+          <p className="text-sm text-danger">
+            {error || "Company not found."}
+          </p>
+
+          <Link
+            href="/companies"
+            className="mt-5 inline-block text-sm text-accent hover:text-accent-hover"
+          >
+            ← Back to Companies
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      {/* Navigation */}
-      <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex h-[72px] max-w-[1400px] items-center justify-between px-6 lg:px-10">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="text-[21px] font-bold tracking-tight">
+      {/* NAVIGATION */}
+      <nav className="border-b border-border bg-surface">
+        <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5">
+          <Link href="/" className="min-w-0">
+            <div className="text-base font-semibold tracking-tight">
               Comp<span className="text-accent">Scope</span>
             </div>
 
-            <span className="hidden border-l border-border pl-3 text-xs text-muted md:block">
-              Compensation Intelligence
-            </span>
+            <div className="hidden text-[11px] text-muted sm:block">
+              Compensation intelligence
+            </div>
           </Link>
 
-          <div className="flex items-center gap-6">
-            <nav className="flex items-center gap-6">
-              <Link
-                href="/"
-                className="py-[25px] text-sm font-medium text-muted hover:text-foreground"
-              >
-                Explorer
-              </Link>
+          <div className="flex items-center gap-2 sm:gap-5">
+            <Link
+              href="/"
+              className="text-xs text-muted hover:text-foreground sm:text-sm"
+            >
+              Explorer
+            </Link>
 
-              <Link
-                href="/companies"
-                className="border-b-2 border-accent py-[25px] text-sm font-medium text-foreground"
-              >
-                Companies
-              </Link>
+            <Link
+              href="/companies"
+              className="text-xs font-medium text-foreground sm:text-sm"
+            >
+              Companies
+            </Link>
 
-              <Link
-                href="/compare"
-                className="py-[25px] text-sm font-medium text-muted hover:text-foreground"
-              >
-                Compare
-              </Link>
-            </nav>
+            <Link
+              href="/compare"
+              className="text-xs text-muted hover:text-foreground sm:text-sm"
+            >
+              Compare
+            </Link>
 
             <ThemeToggle />
           </div>
         </div>
-      </header>
+      </nav>
 
-      <div className="mx-auto max-w-[1400px] px-6 py-10 lg:px-10">
+      {/* HEADER */}
+      <section className="mx-auto max-w-7xl px-5 pb-8 pt-10">
         <Link
           href="/companies"
-          className="text-sm font-medium text-accent hover:text-accent-hover"
+          className="text-xs text-muted hover:text-accent"
         >
-          ← Companies
+          ← All companies
         </Link>
 
-        {loading && (
-          <div className="mt-8 border border-border bg-surface px-6 py-12 text-center text-sm text-muted">
-            Loading company...
+        <div className="mt-5">
+          <p className="text-xs font-medium uppercase tracking-[0.14em] text-accent">
+            Company intelligence
+          </p>
+
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+            {analytics.company.name}
+          </h1>
+
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+            Compensation patterns across levels, roles and
+            locations. Levels are treated as the primary
+            comparison dimension.
+          </p>
+        </div>
+      </section>
+
+      {/* DATA NOTICE */}
+      <section className="mx-auto max-w-7xl px-5 pb-5">
+        <div className="rounded-lg border border-border bg-surface-muted px-4 py-3 text-xs leading-5 text-muted">
+          <span className="font-medium text-foreground">
+            Demo dataset:
+          </span>{" "}
+          Compensation records shown here are synthetic
+          data created for demonstration purposes. They
+          should not be interpreted as verified market
+          compensation.
+        </div>
+      </section>
+
+      {/* SUMMARY */}
+      <section className="mx-auto max-w-7xl px-5 pb-8">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <p className="text-xs text-muted">
+              Records
+            </p>
+
+            <p className="mt-2 text-xl font-semibold">
+              {analytics.summary.records}
+            </p>
           </div>
-        )}
 
-        {!loading && error && (
-          <div className="mt-8 border border-danger/30 bg-surface px-6 py-10 text-center text-sm text-danger">
-            {error}
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <p className="text-xs text-muted">
+              Avg. total
+            </p>
+
+            <p className="mt-2 text-xl font-semibold">
+              {formatCompact(
+                analytics.summary.averageTotal,
+              )}
+            </p>
           </div>
-        )}
 
-        {!loading && !error && company && (
-          <>
-            <section className="mt-8 border-b border-border pb-8">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-accent">
-                Company Profile
-              </p>
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <p className="text-xs text-muted">
+              Levels
+            </p>
 
-              <h1 className="text-4xl font-bold tracking-tight">
-                {company.name}
-              </h1>
+            <p className="mt-2 text-xl font-semibold">
+              {analytics.summary.levels}
+            </p>
+          </div>
 
-              <p className="mt-2 text-sm text-muted">
-                Compensation intelligence across roles, levels and locations.
-              </p>
-            </section>
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <p className="text-xs text-muted">
+              Roles
+            </p>
 
-            <section className="grid gap-px border-b border-x border-border bg-border md:grid-cols-3">
-              <div className="bg-surface px-6 py-6">
-                <p className="text-xs uppercase tracking-wide text-muted">
-                  Records
-                </p>
+            <p className="mt-2 text-xl font-semibold">
+              {analytics.summary.roles}
+            </p>
+          </div>
 
-                <p className="mt-2 text-2xl font-semibold">
-                  {company.compensations.length}
-                </p>
-              </div>
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <p className="text-xs text-muted">
+              Locations
+            </p>
 
-              <div className="bg-surface px-6 py-6">
-                <p className="text-xs uppercase tracking-wide text-muted">
-                  Highest Total Comp
-                </p>
+            <p className="mt-2 text-xl font-semibold">
+              {analytics.summary.locations}
+            </p>
+          </div>
+        </div>
+      </section>
 
-                <p className="mt-2 text-2xl font-semibold">
-                  {formatSalary(
-                    Math.max(
-                      ...company.compensations.map((item) =>
-                        Number(item.totalCompensation)
-                      )
-                    )
-                  )}
-                </p>
-              </div>
+      {/* LEVEL INSIGHT */}
+      {highestLevel && (
+        <section className="mx-auto max-w-7xl px-5 pb-8">
+          <div className="rounded-xl border border-accent/20 bg-accent-soft px-5 py-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-accent">
+              Level insight
+            </p>
 
-              <div className="bg-surface px-6 py-6">
-                <p className="text-xs uppercase tracking-wide text-muted">
-                  Lowest Total Comp
-                </p>
+            <p className="mt-2 text-sm leading-6 text-foreground">
+              <span className="font-semibold">
+                {highestLevel.level}
+              </span>{" "}
+              has the highest average total compensation
+              in this dataset at{" "}
+              <span className="font-semibold text-accent">
+                {formatSalary(
+                  highestLevel.averageTotal,
+                )}
+              </span>
+              .
+            </p>
 
-                <p className="mt-2 text-2xl font-semibold">
-                  {formatSalary(
-                    Math.min(
-                      ...company.compensations.map((item) =>
-                        Number(item.totalCompensation)
-                      )
-                    )
-                  )}
-                </p>
-              </div>
-            </section>
+            <p className="mt-1 text-xs text-muted">
+              Based on {highestLevel.records} compensation
+              records.
+            </p>
+          </div>
+        </section>
+      )}
 
-            <section className="mt-10">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold">
-                  Compensation Records
-                </h2>
+      {/* LEVEL CHART */}
+      <section className="mx-auto max-w-7xl px-5 pb-5">
+        <div className="rounded-xl border border-border bg-surface">
+          <div className="border-b border-border px-5 py-4">
+            <h2 className="text-sm font-semibold">
+              Compensation by level
+            </h2>
 
-                <p className="mt-1 text-xs text-muted">
-                  Compensation data available for this company.
-                </p>
-              </div>
+            <p className="mt-1 text-xs text-muted">
+              Average total compensation increases across
+              seniority levels.
+            </p>
+          </div>
 
-              <div className="overflow-x-auto border border-border bg-surface">
-                <table className="w-full min-w-[850px] border-collapse">
-                  <thead>
-                    <tr className="border-b border-border bg-surface-muted">
-                      <th className="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-muted">
-                        Role
-                      </th>
+          <div className="h-[340px] p-4 sm:h-[380px]">
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+            >
+              <BarChart
+                data={analytics.byLevel}
+                margin={{
+                  top: 10,
+                  right: 15,
+                  left: 5,
+                  bottom: 10,
+                }}
+              >
+                <CartesianGrid
+                  vertical={false}
+                  stroke="var(--border)"
+                />
 
-                      <th className="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-muted">
-                        Level
-                      </th>
+                <XAxis
+                  dataKey="level"
+                  tick={{
+                    fill: "var(--muted)",
+                    fontSize: 11,
+                  }}
+                  axisLine={false}
+                  tickLine={false}
+                />
 
-                      <th className="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-muted">
-                        Location
-                      </th>
+                <YAxis
+                  tickFormatter={formatCompact}
+                  tick={{
+                    fill: "var(--muted)",
+                    fontSize: 10,
+                  }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={55}
+                />
 
-                      <th className="px-5 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted">
-                        Base
-                      </th>
+                <Tooltip
+                  cursor={{
+                    fill: "var(--accent-soft)",
+                    opacity: 0.25,
+                  }}
+                  content={<CustomTooltip />}
+                />
 
-                      <th className="px-5 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted">
-                        Total Comp
-                      </th>
-                    </tr>
-                  </thead>
+                <Bar
+                  dataKey="averageTotal"
+                  name="Average total"
+                  fill="var(--accent)"
+                  radius={[5, 5, 0, 0]}
+                  barSize={36}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </section>
 
-                  <tbody>
-                    {company.compensations.map((record) => (
-                      <tr
-                        key={record.id}
-                        className="border-b border-border hover:bg-surface-muted"
-                      >
-                        <td className="px-5 py-4 text-sm font-medium">
-                          {record.role.name}
-                        </td>
+      {/* LEVEL BREAKDOWN */}
+      <section className="mx-auto max-w-7xl px-5 pb-8">
+        <div className="overflow-hidden rounded-xl border border-border bg-surface">
+          <div className="border-b border-border px-5 py-4">
+            <h2 className="text-sm font-semibold">
+              Level compensation breakdown
+            </h2>
 
-                        <td className="px-5 py-4">
-                          <span className="rounded-md bg-accent-soft px-2 py-1 text-xs font-semibold text-accent">
-                            {record.level.name}
-                          </span>
-                        </td>
+            <p className="mt-1 text-xs text-muted">
+              Average compensation components by level.
+            </p>
+          </div>
 
-                        <td className="px-5 py-4 text-sm text-muted-strong">
-                          {record.location.city},{" "}
-                          {record.location.country}
-                        </td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="border-b border-border bg-surface-muted">
+                <tr className="text-xs uppercase tracking-wide text-muted">
+                  <th className="px-5 py-3.5 font-medium">
+                    Level
+                  </th>
 
-                        <td className="px-5 py-4 text-right text-sm tabular-nums">
-                          {formatSalary(
-                            record.baseSalary,
-                            record.currency
-                          )}
-                        </td>
+                  <th className="px-5 py-3.5 font-medium">
+                    Records
+                  </th>
 
-                        <td className="px-5 py-4 text-right text-sm font-bold tabular-nums">
-                          {formatSalary(
-                            record.totalCompensation,
-                            record.currency
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </>
-        )}
-      </div>
+                  <th className="px-5 py-3.5 font-medium">
+                    Avg. base
+                  </th>
+
+                  <th className="px-5 py-3.5 font-medium">
+                    Avg. stock
+                  </th>
+
+                  <th className="px-5 py-3.5 font-medium">
+                    Avg. bonus
+                  </th>
+
+                  <th className="px-5 py-3.5 font-medium">
+                    Avg. total
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-border">
+                {analytics.byLevel.map((level) => (
+                  <tr
+                    key={level.level}
+                    className="transition-colors hover:bg-surface-muted"
+                  >
+                    <td className="px-5 py-4 font-semibold">
+                      {level.level}
+                    </td>
+
+                    <td className="px-5 py-4 text-muted">
+                      {level.records}
+                    </td>
+
+                    <td className="px-5 py-4">
+                      {formatSalary(level.averageBase)}
+                    </td>
+
+                    <td className="px-5 py-4">
+                      {formatSalary(level.averageStock)}
+                    </td>
+
+                    <td className="px-5 py-4">
+                      {formatSalary(level.averageBonus)}
+                    </td>
+
+                    <td className="px-5 py-4 font-semibold text-accent">
+                      {formatSalary(level.averageTotal)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {/* ROLE + LOCATION */}
+      <section className="mx-auto grid max-w-7xl gap-4 px-5 pb-12 lg:grid-cols-2">
+        <div className="rounded-xl border border-border bg-surface">
+          <div className="border-b border-border px-5 py-4">
+            <h2 className="text-sm font-semibold">
+              Compensation by role
+            </h2>
+
+            <p className="mt-1 text-xs text-muted">
+              Average total compensation across roles.
+            </p>
+          </div>
+
+          <div className="divide-y divide-border">
+            {analytics.byRole
+              .slice(0, 6)
+              .map((role) => (
+                <div
+                  key={role.role}
+                  className="flex items-center justify-between gap-4 px-5 py-3.5"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      {role.role}
+                    </p>
+
+                    <p className="mt-0.5 text-xs text-muted">
+                      {role.records} records
+                    </p>
+                  </div>
+
+                  <span className="shrink-0 text-sm font-semibold text-accent">
+                    {formatCompact(role.averageTotal)}
+                  </span>
+                </div>
+              ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-surface">
+          <div className="border-b border-border px-5 py-4">
+            <h2 className="text-sm font-semibold">
+              Compensation by location
+            </h2>
+
+            <p className="mt-1 text-xs text-muted">
+              Average total compensation across locations.
+            </p>
+          </div>
+
+          <div className="divide-y divide-border">
+            {analytics.byLocation
+              .slice(0, 6)
+              .map((location) => (
+                <div
+                  key={location.location}
+                  className="flex items-center justify-between gap-4 px-5 py-3.5"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      {location.location}
+                    </p>
+
+                    <p className="mt-0.5 text-xs text-muted">
+                      {location.records} records
+                    </p>
+                  </div>
+
+                  <span className="shrink-0 text-sm font-semibold text-accent">
+                    {formatCompact(
+                      location.averageTotal,
+                    )}
+                  </span>
+                </div>
+              ))}
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-border px-5 py-8 text-center text-xs text-muted">
+        CompScope · Synthetic demo dataset · Compensation
+        intelligence
+      </footer>
     </main>
   );
 }

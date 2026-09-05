@@ -72,6 +72,7 @@
 
 html {
   background: var(--background);
+  scroll-behavior: smooth;
 }
 
 body {
@@ -99,4 +100,41 @@ button {
 ::selection {
   background: var(--accent-soft);
   color: var(--foreground);
+}
+
+/* Subtle product-style entrance animation */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 320ms ease-out both;
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-fade-up {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

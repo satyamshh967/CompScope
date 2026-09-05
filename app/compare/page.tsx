@@ -1,82 +1,90 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import ThemeToggle from "../components/theme-toggle";
+import { CompensationChart } from "@/app/components/compensation-chart";
+import ThemeToggle from "@/app/components/theme-toggle";
 
 type Compensation = {
-  id: number;
-  baseSalary: number | string;
-  stock: number | string;
-  bonus: number | string;
-  totalCompensation: number | string;
+  id: string;
+  baseSalary: string | number;
+  stock: string | number;
+  bonus: string | number;
+  totalCompensation: string | number;
   currency: string;
-  yearsExperience?: number | null;
+  yearsExperience?: string | number | null;
 
   company: {
-    id: number;
     name: string;
   };
 
   role: {
-    id: number;
     name: string;
   };
 
   level: {
-    id: number;
-    name: string;
+    canonicalLevel: string;
   };
 
   location: {
-    id: number;
     city: string;
     country: string;
   };
 };
 
-function formatSalary(value: number | string, currency = "INR") {
+function formatSalary(value: string | number) {
   const amount = Number(value);
 
-  if (Number.isNaN(amount)) return "—";
-
-  if (currency === "INR") {
-    return `₹${amount.toLocaleString("en-IN", {
-      maximumFractionDigits: 0,
-    })}`;
+  if (!Number.isFinite(amount)) {
+    return "—";
   }
 
-  return `${currency} ${amount.toLocaleString("en-US", {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
     maximumFractionDigits: 0,
-  })}`;
+  }).format(amount);
+}
+
+function formatLakhs(value: number) {
+  if (!Number.isFinite(value)) {
+    return "—";
+  }
+
+  if (value >= 10_000_000) {
+    return `₹${(value / 10_000_000).toFixed(2)}Cr`;
+  }
+
+  return `₹${(value / 100_000).toFixed(2)}L`;
 }
 
 export default function ComparePage() {
-  const searchParams = useSearchParams();
-
   const [records, setRecords] = useState<Compensation[]>([]);
-  const [ids, setIds] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const queryIds = searchParams.get("ids") ?? "";
+    const ids = new URLSearchParams(
+      window.location.search,
+    ).get("ids");
 
-    setIds(queryIds);
-
-    if (!queryIds) {
-      setRecords([]);
+    if (!ids) {
+      setError("No compensation records selected.");
+      setLoading(false);
       return;
     }
 
-    async function fetchComparison() {
-      try {
-        setLoading(true);
-        setError("");
+    // Capture the narrowed string value so TypeScript
+    // keeps it as a string inside the async function.
+    const selectedIds = ids;
 
+    async function load() {
+      try {
         const response = await fetch(
-          `/api/compare?ids=${encodeURIComponent(queryIds)}`
+          `/api/compare?ids=${encodeURIComponent(selectedIds)}`,
+          {
+            cache: "no-store",
+          },
         );
 
         if (!response.ok) {
@@ -85,359 +93,406 @@ export default function ComparePage() {
 
         const result = await response.json();
 
-        const data =
-          result.data ??
-          result.records ??
-          result.compensations ??
-          result;
-
-        setRecords(Array.isArray(data) ? data : []);
+        setRecords(result.data ?? []);
       } catch (err) {
         console.error(err);
-        setError("Unable to load comparison.");
-        setRecords([]);
+        setError("Unable to load comparison data.");
       } finally {
         setLoading(false);
       }
     }
 
-    fetchComparison();
-  }, [searchParams]);
+    load();
+  }, []);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const cleaned = ids
-      .split(",")
-      .map((id) => id.trim())
-      .filter(Boolean)
-      .slice(0, 3)
-      .join(",");
-
-    if (!cleaned) {
-      window.location.href = "/compare";
-      return;
+  const insights = useMemo(() => {
+    if (!records.length) {
+      return null;
     }
 
-    window.location.href = `/compare?ids=${cleaned}`;
+    const highestTotal = [...records].sort(
+      (a, b) =>
+        Number(b.totalCompensation) -
+        Number(a.totalCompensation),
+    )[0];
+
+    const highestBase = [...records].sort(
+      (a, b) =>
+        Number(b.baseSalary) -
+        Number(a.baseSalary),
+    )[0];
+
+    const highestStock = [...records].sort(
+      (a, b) =>
+        Number(b.stock) -
+        Number(a.stock),
+    )[0];
+
+    return {
+      highestTotal,
+      highestBase,
+      highestStock,
+    };
+  }, [records]);
+
+  const chartRecords = records.map((record) => ({
+    name: record.company.name,
+    base: Number(record.baseSalary),
+    stock: Number(record.stock),
+    bonus: Number(record.bonus),
+    total: Number(record.totalCompensation),
+  }));
+
+  // Keep this explicitly typed as number | null.
+  // This avoids TypeScript inferring number | false
+  // from the previous && expression.
+  const lead: number | null =
+    insights && records.length > 1
+      ? Number(insights.highestTotal.totalCompensation) -
+        Math.min(
+          ...records.map((record) =>
+            Number(record.totalCompensation),
+          ),
+        )
+      : null;
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-background text-foreground">
+        <div className="mx-auto max-w-7xl px-5 py-16 text-sm text-muted">
+          Loading comparison...
+        </div>
+      </main>
+    );
+  }
+
+  if (error || !records.length) {
+    return (
+      <main className="min-h-screen bg-background text-foreground">
+        <div className="mx-auto max-w-7xl px-5 py-16">
+          <p className="text-sm text-danger">
+            {error || "No comparison data found."}
+          </p>
+
+          <Link
+            href="/"
+            className="mt-5 inline-block text-sm text-accent hover:text-accent-hover"
+          >
+            ← Back to Explorer
+          </Link>
+        </div>
+      </main>
+    );
   }
 
   return (
     <main className="min-h-screen bg-background text-foreground">
       {/* Navigation */}
-      <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex h-[72px] max-w-[1400px] items-center justify-between px-6 lg:px-10">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="text-[21px] font-bold tracking-tight">
+      <nav className="border-b border-border bg-surface">
+        <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5">
+          <Link href="/" className="min-w-0">
+            <div className="text-base font-semibold tracking-tight">
               Comp<span className="text-accent">Scope</span>
             </div>
 
-            <span className="hidden border-l border-border pl-3 text-xs text-muted md:block">
-              Compensation Intelligence
-            </span>
+            <div className="hidden text-[11px] text-muted sm:block">
+              Compensation intelligence
+            </div>
           </Link>
 
-          <div className="flex items-center gap-6">
-            <nav className="flex items-center gap-6">
-              <Link
-                href="/"
-                className="py-[25px] text-sm font-medium text-muted hover:text-foreground"
-              >
-                Explorer
-              </Link>
+          <div className="flex items-center gap-2 sm:gap-5">
+            <Link
+              href="/"
+              className="text-xs text-muted hover:text-foreground sm:text-sm"
+            >
+              Explorer
+            </Link>
 
-              <Link
-                href="/companies"
-                className="py-[25px] text-sm font-medium text-muted hover:text-foreground"
-              >
-                Companies
-              </Link>
+            <Link
+              href="/companies"
+              className="text-xs text-muted hover:text-foreground sm:text-sm"
+            >
+              Companies
+            </Link>
 
-              <Link
-                href="/compare"
-                className="border-b-2 border-accent py-[25px] text-sm font-medium text-foreground"
-              >
-                Compare
-              </Link>
-            </nav>
+            <span className="text-xs font-medium text-foreground sm:text-sm">
+              Compare
+            </span>
 
             <ThemeToggle />
           </div>
         </div>
-      </header>
+      </nav>
 
-      <div className="mx-auto max-w-[1400px] px-6 py-10 lg:px-10">
-        {/* Heading */}
-        <section className="mb-8">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-accent">
-            Compensation Analysis
-          </p>
-
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-            Compare Compensation
-          </h1>
-
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
-            Compare compensation components across up to three records.
-          </p>
-        </section>
-
-        {/* Manual input */}
-        <form
-          onSubmit={handleSubmit}
-          className="mb-8 border-y border-border py-6"
-        >
-          <label
-            htmlFor="record-ids"
-            className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-muted"
-          >
-            Record IDs
-          </label>
-
-          <div className="flex max-w-2xl gap-3">
-            <input
-              id="record-ids"
-              value={ids}
-              onChange={(event) => setIds(event.target.value)}
-              placeholder="Example: 1, 2, 3"
-              className="
-                h-11
-                min-w-0
-                flex-1
-                rounded-lg
-                border
-                border-border
-                bg-surface
-                px-4
-                text-sm
-                text-foreground
-                placeholder:text-muted
-                focus:border-accent
-                focus:ring-2
-                focus:ring-accent-soft
-              "
-            />
-
-            <button
-              type="submit"
-              className="
-                rounded-lg
-                bg-accent
-                px-5
-                text-sm
-                font-semibold
-                text-white
-                hover:bg-accent-hover
-              "
-            >
-              Compare
-            </button>
-          </div>
-
-          <p className="mt-2 text-xs text-muted">
-            Enter up to three compensation record IDs.
-          </p>
-        </form>
-
-        {loading && (
-          <div className="border border-border bg-surface px-6 py-12 text-center text-sm text-muted">
-            Loading comparison...
-          </div>
-        )}
-
-        {!loading && error && (
-          <div className="border border-danger/30 bg-surface px-6 py-10 text-center text-sm text-danger">
-            {error}
-          </div>
-        )}
-
-        {!loading && !error && records.length === 0 && (
-          <div className="border border-border bg-surface px-6 py-12 text-center">
-            <h2 className="text-lg font-semibold">
-              No comparison selected
-            </h2>
-
-            <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-              Select records from the Explorer to compare compensation side
-              by side.
+      {/* Header */}
+      <section className="mx-auto max-w-7xl px-5 pb-8 pt-10 sm:pt-12">
+        <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-accent">
+              Compensation comparison
             </p>
 
-            <Link
-              href="/"
-              className="mt-5 inline-flex rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover"
-            >
-              Open Explorer
-            </Link>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+              Compare selected offers
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+              Compare compensation structure across
+              companies, with total compensation and
+              equity separated from base salary.
+            </p>
           </div>
-        )}
 
-        {!loading && !error && records.length > 0 && (
-          <section>
-            {/* Record headers */}
-            <div
-              className={`grid gap-px border border-border bg-border ${
-                records.length === 1
-                  ? "md:grid-cols-1"
-                  : records.length === 2
-                    ? "md:grid-cols-2"
-                    : "md:grid-cols-3"
-              }`}
-            >
-              {records.map((record) => (
-                <div
-                  key={record.id}
-                  className="bg-surface px-6 py-6"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-lg font-semibold">
-                        {record.company.name}
-                      </p>
+          <Link
+            href="/"
+            className="text-sm text-accent hover:text-accent-hover"
+          >
+            ← Back to Explorer
+          </Link>
+        </div>
+      </section>
 
-                      <p className="mt-1 text-sm text-muted">
-                        {record.role.name}
-                      </p>
-                    </div>
+      {/* Comparison insights */}
+      {insights && (
+        <section className="mx-auto max-w-7xl px-5 pb-7">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {/* Highest total */}
+            <div className="rounded-xl border border-border bg-surface p-4">
+              <p className="text-xs uppercase tracking-wide text-muted">
+                Highest total
+              </p>
 
-                    <span className="rounded-md bg-accent-soft px-2 py-1 text-xs font-semibold text-accent">
-                      {record.level.name}
-                    </span>
-                  </div>
+              <p className="mt-2 text-lg font-semibold">
+                {insights.highestTotal.company.name}
+              </p>
 
-                  <p className="mt-4 text-xs text-muted">
-                    {record.location.city},{" "}
-                    {record.location.country}
-                  </p>
-
-                  <p className="mt-6 text-xs uppercase tracking-wide text-muted">
-                    Total Compensation
-                  </p>
-
-                  <p className="mt-1 text-2xl font-bold">
-                    {formatSalary(
-                      record.totalCompensation,
-                      record.currency
-                    )}
-                  </p>
-                </div>
-              ))}
+              <p className="mt-1 text-sm font-medium text-accent">
+                {formatSalary(
+                  insights.highestTotal.totalCompensation,
+                )}
+              </p>
             </div>
 
-            {/* Comparison table */}
-            <div className="mt-8 overflow-x-auto border border-border bg-surface">
-              <table className="w-full min-w-[700px] border-collapse">
-                <thead>
-                  <tr className="border-b border-border bg-surface-muted">
-                    <th className="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-muted">
-                      Metric
-                    </th>
+            {/* Highest base */}
+            <div className="rounded-xl border border-border bg-surface p-4">
+              <p className="text-xs uppercase tracking-wide text-muted">
+                Highest base
+              </p>
 
-                    {records.map((record) => (
-                      <th
-                        key={record.id}
-                        className="px-5 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted"
-                      >
-                        {record.company.name}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
+              <p className="mt-2 text-lg font-semibold">
+                {insights.highestBase.company.name}
+              </p>
 
-                <tbody>
-                  {[
-                    ["Base Salary", "baseSalary"],
-                    ["Stock", "stock"],
-                    ["Bonus", "bonus"],
-                    ["Total Compensation", "totalCompensation"],
-                  ].map(([label, key]) => (
-                    <tr
-                      key={key}
-                      className={`
-                        border-b border-border
-                        ${
-                          key === "totalCompensation"
-                            ? "bg-accent-soft/40"
-                            : ""
-                        }
-                      `}
+              <p className="mt-1 text-sm font-medium text-accent">
+                {formatSalary(
+                  insights.highestBase.baseSalary,
+                )}
+              </p>
+            </div>
+
+            {/* Highest stock */}
+            <div className="rounded-xl border border-border bg-surface p-4">
+              <p className="text-xs uppercase tracking-wide text-muted">
+                Highest stock
+              </p>
+
+              <p className="mt-2 text-lg font-semibold">
+                {insights.highestStock.company.name}
+              </p>
+
+              <p className="mt-1 text-sm font-medium text-accent">
+                {formatSalary(
+                  insights.highestStock.stock,
+                )}
+              </p>
+            </div>
+          </div>
+
+          {/* Lead insight */}
+          {lead !== null && (
+            <div className="mt-3 rounded-xl border border-accent/20 bg-accent-soft px-4 py-3 text-sm text-muted">
+              <span className="font-medium text-foreground">
+                {insights.highestTotal.company.name}
+              </span>{" "}
+              leads the selected records by{" "}
+              <span className="font-medium text-accent">
+                {formatLakhs(lead)}
+              </span>{" "}
+              in total compensation.
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Charts */}
+      <section className="mx-auto max-w-7xl px-5 pb-8">
+        <CompensationChart records={chartRecords} />
+      </section>
+
+      {/* Comparison table */}
+      <section className="mx-auto max-w-7xl px-5 pb-12">
+        <div className="overflow-hidden rounded-xl border border-border bg-surface">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="border-b border-border bg-surface-muted">
+                <tr className="text-xs uppercase tracking-wide text-muted">
+                  <th className="px-5 py-3.5 font-medium">
+                    Metric
+                  </th>
+
+                  {records.map((record) => (
+                    <th
+                      key={record.id}
+                      className="px-5 py-3.5 font-medium"
                     >
-                      <td className="px-5 py-5 text-sm font-medium">
-                        {label}
-                      </td>
-
-                      {records.map((record) => (
-                        <td
-                          key={record.id}
-                          className={`
-                            px-5
-                            py-5
-                            text-right
-                            text-sm
-                            tabular-nums
-                            ${
-                              key === "totalCompensation"
-                                ? "font-bold text-accent"
-                                : ""
-                            }
-                          `}
-                        >
-                          {formatSalary(
-                            record[key as keyof Compensation] as
-                              | number
-                              | string,
-                            record.currency
-                          )}
-                        </td>
-                      ))}
-                    </tr>
+                      {record.company.name}
+                    </th>
                   ))}
+                </tr>
+              </thead>
 
-                  <tr className="border-b border-border">
-                    <td className="px-5 py-5 text-sm font-medium">
-                      Location
+              <tbody className="divide-y divide-border">
+                {/* Base */}
+                <tr>
+                  <td className="px-5 py-4 font-medium">
+                    Base salary
+                  </td>
+
+                  {records.map((record) => (
+                    <td
+                      key={record.id}
+                      className="px-5 py-4"
+                    >
+                      {formatSalary(record.baseSalary)}
                     </td>
+                  ))}
+                </tr>
 
-                    {records.map((record) => (
-                      <td
-                        key={record.id}
-                        className="px-5 py-5 text-right text-sm text-muted-strong"
-                      >
-                        {record.location.city}
-                      </td>
-                    ))}
-                  </tr>
+                {/* Stock */}
+                <tr>
+                  <td className="px-5 py-4 font-medium">
+                    Stock
+                  </td>
 
-                  <tr>
-                    <td className="px-5 py-5 text-sm font-medium">
-                      Experience
+                  {records.map((record) => (
+                    <td
+                      key={record.id}
+                      className="px-5 py-4"
+                    >
+                      {formatSalary(record.stock)}
                     </td>
+                  ))}
+                </tr>
 
-                    {records.map((record) => (
-                      <td
-                        key={record.id}
-                        className="px-5 py-5 text-right text-sm text-muted-strong"
-                      >
-                        {record.yearsExperience != null
-                          ? `${record.yearsExperience} years`
-                          : "Not specified"}
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+                {/* Bonus */}
+                <tr>
+                  <td className="px-5 py-4 font-medium">
+                    Bonus
+                  </td>
 
-            <div className="mt-5">
-              <Link
-                href="/"
-                className="text-sm font-medium text-accent hover:text-accent-hover"
-              >
-                ← Back to Explorer
-              </Link>
-            </div>
-          </section>
-        )}
-      </div>
+                  {records.map((record) => (
+                    <td
+                      key={record.id}
+                      className="px-5 py-4"
+                    >
+                      {formatSalary(record.bonus)}
+                    </td>
+                  ))}
+                </tr>
+
+                {/* Total */}
+                <tr className="bg-accent-soft">
+                  <td className="px-5 py-4 font-semibold">
+                    Total compensation
+                  </td>
+
+                  {records.map((record) => (
+                    <td
+                      key={record.id}
+                      className="px-5 py-4 font-semibold text-accent"
+                    >
+                      {formatSalary(
+                        record.totalCompensation,
+                      )}
+                    </td>
+                  ))}
+                </tr>
+
+                {/* Role */}
+                <tr>
+                  <td className="px-5 py-4 font-medium">
+                    Role
+                  </td>
+
+                  {records.map((record) => (
+                    <td
+                      key={record.id}
+                      className="px-5 py-4 text-muted-strong"
+                    >
+                      {record.role.name}
+                    </td>
+                  ))}
+                </tr>
+
+                {/* Level */}
+                <tr>
+                  <td className="px-5 py-4 font-medium">
+                    Level
+                  </td>
+
+                  {records.map((record) => (
+                    <td
+                      key={record.id}
+                      className="px-5 py-4 text-muted-strong"
+                    >
+                      {record.level.canonicalLevel}
+                    </td>
+                  ))}
+                </tr>
+
+                {/* Location */}
+                <tr>
+                  <td className="px-5 py-4 font-medium">
+                    Location
+                  </td>
+
+                  {records.map((record) => (
+                    <td
+                      key={record.id}
+                      className="px-5 py-4 text-muted-strong"
+                    >
+                      {record.location.city}
+                    </td>
+                  ))}
+                </tr>
+
+                {/* Experience */}
+                <tr>
+                  <td className="px-5 py-4 font-medium">
+                    Experience
+                  </td>
+
+                  {records.map((record) => (
+                    <td
+                      key={record.id}
+                      className="px-5 py-4 text-muted-strong"
+                    >
+                      {record.yearsExperience != null
+                        ? `${record.yearsExperience} years`
+                        : "—"}
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-border px-5 py-8 text-center text-xs text-muted">
+        CompScope · Synthetic demo dataset · Compensation
+        intelligence
+      </footer>
     </main>
   );
 }

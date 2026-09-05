@@ -1,252 +1,262 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import ThemeToggle from "../components/theme-toggle";
+import Link from "next/link";
+import ThemeToggle from "@/app/components/theme-toggle";
 
-type Company = {
-  id: number;
+type CompanyRanking = {
+  rank: number;
+  id: string;
   name: string;
-  compensationCount?: number;
-  _count?: {
-    compensations?: number;
-  };
+  records: number;
+  averageTotal: number;
+  highestLevel: string;
 };
 
+function formatSalary(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatCompact(value: number) {
+  if (value >= 10_000_000) {
+    return `₹${(value / 10_000_000).toFixed(1)}Cr`;
+  }
+
+  return `₹${(value / 100_000).toFixed(1)}L`;
+}
+
 export default function CompaniesPage() {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [search, setSearch] = useState("");
+  const [companies, setCompanies] = useState<
+    CompanyRanking[]
+  >([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    async function fetchCompanies() {
+    async function loadCompanies() {
       try {
-        setLoading(true);
-        setError("");
-
-        const response = await fetch("/api/companies");
+        const response = await fetch(
+          "/api/companies/rankings",
+          {
+            cache: "no-store",
+          },
+        );
 
         if (!response.ok) {
-          throw new Error("Failed to load companies");
+          throw new Error(
+            "Failed to load company rankings",
+          );
         }
 
         const result = await response.json();
 
-        const data = result.data ?? result.companies ?? result;
-
-        setCompanies(Array.isArray(data) ? data : []);
+        setCompanies(result.data ?? []);
       } catch (err) {
         console.error(err);
-        setError("Unable to load companies.");
+        setError("Unable to load company rankings.");
       } finally {
         setLoading(false);
       }
     }
 
-    fetchCompanies();
+    loadCompanies();
   }, []);
-
-  const filteredCompanies = companies.filter((company) =>
-    company.name.toLowerCase().includes(search.toLowerCase())
-  );
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      {/* Navigation */}
-      <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex h-[72px] max-w-[1400px] items-center justify-between px-6 lg:px-10">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="text-[21px] font-bold tracking-tight">
+      <nav className="border-b border-border bg-surface">
+        <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5">
+          <Link href="/" className="min-w-0">
+            <div className="text-base font-semibold tracking-tight">
               Comp<span className="text-accent">Scope</span>
             </div>
 
-            <span className="hidden border-l border-border pl-3 text-xs text-muted md:block">
-              Compensation Intelligence
-            </span>
+            <div className="hidden text-[11px] text-muted sm:block">
+              Compensation intelligence
+            </div>
           </Link>
 
-          <div className="flex items-center gap-6">
-            <nav className="flex items-center gap-6">
-              <Link
-                href="/"
-                className="py-[25px] text-sm font-medium text-muted hover:text-foreground"
-              >
-                Explorer
-              </Link>
+          <div className="flex items-center gap-2 sm:gap-5">
+            <Link
+              href="/"
+              className="text-xs text-muted hover:text-foreground sm:text-sm"
+            >
+              Explorer
+            </Link>
 
-              <Link
-                href="/companies"
-                className="border-b-2 border-accent py-[25px] text-sm font-medium text-foreground"
-              >
-                Companies
-              </Link>
+            <span className="text-xs font-medium text-foreground sm:text-sm">
+              Companies
+            </span>
 
-              <Link
-                href="/compare"
-                className="py-[25px] text-sm font-medium text-muted hover:text-foreground"
-              >
-                Compare
-              </Link>
-            </nav>
+            <Link
+              href="/compare"
+              className="text-xs text-muted hover:text-foreground sm:text-sm"
+            >
+              Compare
+            </Link>
 
             <ThemeToggle />
           </div>
         </div>
-      </header>
+      </nav>
 
-      <div className="mx-auto max-w-[1400px] px-6 py-10 lg:px-10">
-        {/* Heading */}
-        <div className="mb-8">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-accent">
-            Company Intelligence
-          </p>
+      <section className="mx-auto max-w-7xl px-5 pb-8 pt-10 sm:pt-12">
+        <p className="text-xs font-medium uppercase tracking-[0.14em] text-accent">
+          Company intelligence
+        </p>
 
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-            Companies
-          </h1>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+          Compensation rankings
+        </h1>
 
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
-            Explore compensation patterns across companies, levels and
-            locations.
-          </p>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+          Compare companies using average total
+          compensation across the synthetic demo dataset.
+        </p>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 pb-5">
+        <div className="rounded-lg border border-border bg-surface-muted px-4 py-3 text-xs leading-5 text-muted">
+          <span className="font-medium text-foreground">
+            Demo dataset:
+          </span>{" "}
+          These compensation records are synthetic and are
+          provided only to demonstrate the application's
+          analytics capabilities.
         </div>
+      </section>
 
-        {/* Search */}
-        <div className="mb-8 max-w-xl">
-          <label
-            htmlFor="company-search"
-            className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-muted"
-          >
-            Search companies
-          </label>
-
-          <input
-            id="company-search"
-            type="text"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search company..."
-            className="
-              h-11
-              w-full
-              rounded-lg
-              border
-              border-border
-              bg-surface
-              px-4
-              text-sm
-              text-foreground
-              placeholder:text-muted
-              focus:border-accent
-              focus:ring-2
-              focus:ring-accent-soft
-            "
-          />
-        </div>
-
-        {loading && (
-          <div className="border border-border bg-surface px-6 py-12 text-center text-sm text-muted">
-            Loading companies...
-          </div>
-        )}
-
-        {!loading && error && (
-          <div className="border border-danger/30 bg-surface px-6 py-10 text-center text-sm text-danger">
-            {error}
-          </div>
-        )}
-
-        {!loading && !error && filteredCompanies.length === 0 && (
-          <div className="border border-border bg-surface px-6 py-12 text-center">
-            <h2 className="font-semibold">No companies found</h2>
-
-            <p className="mt-2 text-sm text-muted">
-              Try a different search term.
-            </p>
-          </div>
-        )}
-
-        {!loading && !error && filteredCompanies.length > 0 && (
-          <>
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">
-                  Company Directory
+      <section className="mx-auto max-w-7xl px-5 pb-12">
+        <div className="overflow-hidden rounded-xl border border-border bg-surface">
+          {loading ? (
+            <div className="px-5 py-14 text-center text-sm text-muted">
+              Loading company rankings...
+            </div>
+          ) : error ? (
+            <div className="px-5 py-14 text-center text-sm text-danger">
+              {error}
+            </div>
+          ) : companies.length === 0 ? (
+            <div className="px-5 py-14 text-center text-sm text-muted">
+              No company data available.
+            </div>
+          ) : (
+            <>
+              <div className="border-b border-border px-5 py-4">
+                <h2 className="text-sm font-semibold">
+                  Company ranking
                 </h2>
 
                 <p className="mt-1 text-xs text-muted">
-                  {filteredCompanies.length} companies
+                  Ranked by average total compensation.
                 </p>
               </div>
-            </div>
 
-            <div className="overflow-hidden border border-border bg-surface">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b border-border bg-surface-muted">
-                    <th className="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-muted">
-                      Company
-                    </th>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead className="border-b border-border bg-surface-muted">
+                    <tr className="text-xs uppercase tracking-wide text-muted">
+                      <th className="px-5 py-3.5 font-medium">
+                        Rank
+                      </th>
 
-                    <th className="px-5 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted">
-                      Compensation Records
-                    </th>
+                      <th className="px-5 py-3.5 font-medium">
+                        Company
+                      </th>
 
-                    <th className="w-20 px-5 py-3" />
-                  </tr>
-                </thead>
+                      <th className="px-5 py-3.5 font-medium">
+                        Records
+                      </th>
 
-                <tbody>
-                  {filteredCompanies.map((company) => {
-                    const count =
-                      company.compensationCount ??
-                      company._count?.compensations ??
-                      0;
+                      <th className="px-5 py-3.5 font-medium">
+                        Avg. total
+                      </th>
 
-                    return (
+                      <th className="px-5 py-3.5 font-medium">
+                        Highest level
+                      </th>
+
+                      <th className="px-5 py-3.5 font-medium">
+                        View
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-border">
+                    {companies.map((company) => (
                       <tr
                         key={company.id}
-                        className="border-b border-border transition-colors hover:bg-surface-muted"
+                        className="transition-colors hover:bg-surface-muted"
                       >
-                        <td className="px-5 py-5">
+                        <td className="px-5 py-4">
+                          <span
+                            className={
+                              company.rank === 1
+                                ? "font-semibold text-accent"
+                                : "text-muted"
+                            }
+                          >
+                            #{company.rank}
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-4">
                           <Link
                             href={`/companies/${company.id}`}
-                            className="group flex items-center gap-4"
+                            className="font-semibold hover:text-accent"
                           >
-                            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-accent-soft text-sm font-bold text-accent">
-                              {company.name
-                                .charAt(0)
-                                .toUpperCase()}
-                            </div>
-
-                            <span className="text-sm font-semibold group-hover:text-accent">
-                              {company.name}
-                            </span>
+                            {company.name}
                           </Link>
                         </td>
 
-                        <td className="px-5 py-5 text-right text-sm tabular-nums text-muted-strong">
-                          {count}
+                        <td className="px-5 py-4 text-muted">
+                          {company.records}
                         </td>
 
-                        <td className="px-5 py-5 text-right">
+                        <td className="px-5 py-4 font-semibold">
+                          {formatSalary(
+                            company.averageTotal,
+                          )}
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <span className="rounded-md bg-accent-soft px-2 py-1 text-xs font-medium text-accent">
+                            {company.highestLevel}
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-4">
                           <Link
                             href={`/companies/${company.id}`}
-                            className="text-sm font-medium text-accent hover:text-accent-hover"
+                            className="text-xs font-medium text-accent hover:text-accent-hover"
                           >
-                            View →
+                            Intelligence →
                           </Link>
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="border-t border-border px-5 py-4 text-xs text-muted">
+                {companies.length} companies ranked ·
+                average total compensation shown in INR
+              </div>
+            </>
+          )}
+        </div>
+      </section>
+
+      <footer className="border-t border-border px-5 py-8 text-center text-xs text-muted">
+        CompScope · Synthetic demo dataset · Compensation
+        intelligence
+      </footer>
     </main>
   );
 }
