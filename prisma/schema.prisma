@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Company {
+  id             String         @id @default(cuid())
+  name           String
+  normalizedName String         @unique
+
+  compensations  Compensation[]
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([name])
+}
+
+model Role {
+  id             String         @id @default(cuid())
+  name           String
+  normalizedName String         @unique
+
+  compensations  Compensation[]
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([name])
+}
+
+model Level {
+  id             String         @id @default(cuid())
+  name           String
+  canonicalLevel String
+  seniority      Int?
+
+  compensations  Compensation[]
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([canonicalLevel])
+}
+
+model Location {
+  id            String         @id @default(cuid())
+  city          String
+  country       String
+
+  compensations Compensation[]
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([city, country])
+  @@index([country])
+}
+
+model Compensation {
+  id                String   @id @default(cuid())
+
+  companyId         String
+  roleId            String
+  levelId           String
+  locationId        String
+
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role              Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  level             Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  location          Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  baseSalary        Decimal  @db.Decimal(14, 2)
+  stock             Decimal  @default(0) @db.Decimal(14, 2)
+  bonus             Decimal  @default(0) @db.Decimal(14, 2)
+  totalCompensation Decimal  @db.Decimal(14, 2)
+
+  currency          String   @default("INR")
+  yearsExperience   Decimal? @db.Decimal(4, 1)
+  source            String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([roleId])
+  @@index([levelId])
+  @@index([locationId])
+  @@index([totalCompensation])
+  @@index([createdAt])
+}
