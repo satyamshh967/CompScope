@@ -20,18 +20,23 @@ type LevelAnalytics = {
   averageStock: number;
   averageBonus: number;
   averageTotal: number;
+  medianTotal: number;
+  percentile25: number;
+  percentile75: number;
 };
 
 type RoleAnalytics = {
   role: string;
   records: number;
   averageTotal: number;
+  medianTotal: number;
 };
 
 type LocationAnalytics = {
   location: string;
   records: number;
   averageTotal: number;
+  medianTotal: number;
 };
 
 type AnalyticsResponse = {
@@ -49,6 +54,10 @@ type AnalyticsResponse = {
     averageStock: number;
     averageBonus: number;
     averageTotal: number;
+    medianTotal: number;
+    percentile25: number;
+    percentile75: number;
+    lowestTotal: number;
     highestTotal: number;
   };
 
@@ -312,21 +321,23 @@ export default function CompanyPage({
 
           <div className="rounded-xl border border-border bg-surface p-4">
             <p className="text-xs text-muted">
-              Levels
+              Median total
             </p>
 
-            <p className="mt-2 text-xl font-semibold">
-              {analytics.summary.levels}
+            <p className="mt-2 text-xl font-semibold text-accent">
+              {formatCompact(
+                analytics.summary.medianTotal,
+              )}
             </p>
           </div>
 
           <div className="rounded-xl border border-border bg-surface p-4">
             <p className="text-xs text-muted">
-              Roles
+              Levels
             </p>
 
             <p className="mt-2 text-xl font-semibold">
-              {analytics.summary.roles}
+              {analytics.summary.levels}
             </p>
           </div>
 
@@ -338,6 +349,114 @@ export default function CompanyPage({
             <p className="mt-2 text-xl font-semibold">
               {analytics.summary.locations}
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* COMPENSATION DISTRIBUTION */}
+      <section className="mx-auto max-w-7xl px-5 pb-8">
+        <div className="rounded-xl border border-border bg-surface">
+          <div className="border-b border-border px-5 py-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-accent">
+              Compensation benchmarking
+            </p>
+
+            <h2 className="mt-1 text-base font-semibold">
+              Compensation distribution
+            </h2>
+
+            <p className="mt-1 text-xs leading-5 text-muted">
+              Percentiles show how total compensation is
+              distributed across the available records.
+            </p>
+          </div>
+
+          <div className="grid gap-4 p-5 sm:grid-cols-3">
+            <div className="rounded-lg border border-border bg-surface-muted p-4">
+              <p className="text-xs text-muted">
+                25th percentile
+              </p>
+
+              <p className="mt-2 text-xl font-semibold">
+                {formatCompact(
+                  analytics.summary.percentile25,
+                )}
+              </p>
+
+              <p className="mt-1 text-xs text-muted">
+                25% of records are at or below this level.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-accent/30 bg-accent-soft p-4">
+              <p className="text-xs text-accent">
+                Median
+              </p>
+
+              <p className="mt-2 text-xl font-semibold text-accent">
+                {formatCompact(
+                  analytics.summary.medianTotal,
+                )}
+              </p>
+
+              <p className="mt-1 text-xs text-muted">
+                The middle compensation point in the dataset.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-border bg-surface-muted p-4">
+              <p className="text-xs text-muted">
+                75th percentile
+              </p>
+
+              <p className="mt-2 text-xl font-semibold">
+                {formatCompact(
+                  analytics.summary.percentile75,
+                )}
+              </p>
+
+              <p className="mt-1 text-xs text-muted">
+                75% of records are at or below this level.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 border-t border-border">
+            <div className="px-5 py-4">
+              <p className="text-xs text-muted">
+                Lowest total
+              </p>
+
+              <p className="mt-1 text-sm font-semibold">
+                {formatSalary(
+                  analytics.summary.lowestTotal,
+                )}
+              </p>
+            </div>
+
+            <div className="border-x border-border px-5 py-4">
+              <p className="text-xs text-muted">
+                Average total
+              </p>
+
+              <p className="mt-1 text-sm font-semibold">
+                {formatSalary(
+                  analytics.summary.averageTotal,
+                )}
+              </p>
+            </div>
+
+            <div className="px-5 py-4">
+              <p className="text-xs text-muted">
+                Highest total
+              </p>
+
+              <p className="mt-1 text-sm font-semibold">
+                {formatSalary(
+                  analytics.summary.highestTotal,
+                )}
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -381,8 +500,8 @@ export default function CompanyPage({
             </h2>
 
             <p className="mt-1 text-xs text-muted">
-              Average total compensation increases across
-              seniority levels.
+              Average total compensation across career
+              levels.
             </p>
           </div>
 
@@ -452,16 +571,17 @@ export default function CompanyPage({
         <div className="overflow-hidden rounded-xl border border-border bg-surface">
           <div className="border-b border-border px-5 py-4">
             <h2 className="text-sm font-semibold">
-              Level compensation breakdown
+              Level compensation benchmarking
             </h2>
 
             <p className="mt-1 text-xs text-muted">
-              Average compensation components by level.
+              Compensation components and distribution by
+              career level.
             </p>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-[900px] text-left text-sm">
               <thead className="border-b border-border bg-surface-muted">
                 <tr className="text-xs uppercase tracking-wide text-muted">
                   <th className="px-5 py-3.5 font-medium">
@@ -485,7 +605,15 @@ export default function CompanyPage({
                   </th>
 
                   <th className="px-5 py-3.5 font-medium">
-                    Avg. total
+                    P25
+                  </th>
+
+                  <th className="px-5 py-3.5 font-medium">
+                    Median
+                  </th>
+
+                  <th className="px-5 py-3.5 font-medium">
+                    P75
                   </th>
                 </tr>
               </thead>
@@ -516,8 +644,16 @@ export default function CompanyPage({
                       {formatSalary(level.averageBonus)}
                     </td>
 
+                    <td className="px-5 py-4">
+                      {formatCompact(level.percentile25)}
+                    </td>
+
                     <td className="px-5 py-4 font-semibold text-accent">
-                      {formatSalary(level.averageTotal)}
+                      {formatCompact(level.medianTotal)}
+                    </td>
+
+                    <td className="px-5 py-4">
+                      {formatCompact(level.percentile75)}
                     </td>
                   </tr>
                 ))}
@@ -536,7 +672,8 @@ export default function CompanyPage({
             </h2>
 
             <p className="mt-1 text-xs text-muted">
-              Average total compensation across roles.
+              Average and median total compensation across
+              roles.
             </p>
           </div>
 
@@ -554,7 +691,8 @@ export default function CompanyPage({
                     </p>
 
                     <p className="mt-0.5 text-xs text-muted">
-                      {role.records} records
+                      {role.records} records · median{" "}
+                      {formatCompact(role.medianTotal)}
                     </p>
                   </div>
 
@@ -573,7 +711,8 @@ export default function CompanyPage({
             </h2>
 
             <p className="mt-1 text-xs text-muted">
-              Average total compensation across locations.
+              Average and median total compensation across
+              locations.
             </p>
           </div>
 
@@ -591,7 +730,8 @@ export default function CompanyPage({
                     </p>
 
                     <p className="mt-0.5 text-xs text-muted">
-                      {location.records} records
+                      {location.records} records · median{" "}
+                      {formatCompact(location.medianTotal)}
                     </p>
                   </div>
 
