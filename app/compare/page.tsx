@@ -27,7 +27,6 @@ type Compensation = {
   level: {
     id: number;
     name: string;
-    canonicalLevel?: string;
   };
 
   location: {
@@ -40,9 +39,7 @@ type Compensation = {
 function formatSalary(value: number | string, currency = "INR") {
   const amount = Number(value);
 
-  if (Number.isNaN(amount)) {
-    return "—";
-  }
+  if (Number.isNaN(amount)) return "—";
 
   if (currency === "INR") {
     return `₹${amount.toLocaleString("en-IN", {
@@ -97,7 +94,7 @@ export default function ComparePage() {
         setRecords(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error(err);
-        setError("Unable to load the comparison.");
+        setError("Unable to load comparison.");
         setRecords([]);
       } finally {
         setLoading(false);
@@ -107,131 +104,116 @@ export default function ComparePage() {
     fetchComparison();
   }, [searchParams]);
 
-  function handleManualCompare(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const cleanedIds = ids
+    const cleaned = ids
       .split(",")
       .map((id) => id.trim())
       .filter(Boolean)
       .slice(0, 3)
       .join(",");
 
-    if (!cleanedIds) {
-      setRecords([]);
+    if (!cleaned) {
+      window.location.href = "/compare";
       return;
     }
 
-    window.history.pushState({}, "", `/compare?ids=${cleanedIds}`);
-
-    window.location.href = `/compare?ids=${cleanedIds}`;
+    window.location.href = `/compare?ids=${cleaned}`;
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground transition-colors duration-200">
+    <main className="min-h-screen bg-background text-foreground">
       {/* Navigation */}
-      <nav className="border-b border-border bg-background">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-8 py-6">
-          <Link href="/" className="group">
-            <div className="text-2xl font-bold tracking-tight">
+      <header className="border-b border-border bg-surface">
+        <div className="mx-auto flex h-[72px] max-w-[1400px] items-center justify-between px-6 lg:px-10">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="text-[21px] font-bold tracking-tight">
               Comp<span className="text-accent">Scope</span>
             </div>
 
-            <div className="text-sm text-muted">
+            <span className="hidden border-l border-border pl-3 text-xs text-muted md:block">
               Compensation Intelligence
-            </div>
+            </span>
           </Link>
 
-          <div className="flex items-center gap-8">
-            <Link
-              href="/"
-              className="text-sm font-medium text-muted transition-colors hover:text-accent"
-            >
-              Explorer
-            </Link>
+          <div className="flex items-center gap-6">
+            <nav className="flex items-center gap-6">
+              <Link
+                href="/"
+                className="py-[25px] text-sm font-medium text-muted hover:text-foreground"
+              >
+                Explorer
+              </Link>
 
-            <Link
-              href="/companies"
-              className="text-sm font-medium text-muted transition-colors hover:text-accent"
-            >
-              Companies
-            </Link>
+              <Link
+                href="/companies"
+                className="py-[25px] text-sm font-medium text-muted hover:text-foreground"
+              >
+                Companies
+              </Link>
 
-            <Link
-              href="/compare"
-              className="text-sm font-medium text-accent"
-            >
-              Compare
-            </Link>
+              <Link
+                href="/compare"
+                className="border-b-2 border-accent py-[25px] text-sm font-medium text-foreground"
+              >
+                Compare
+              </Link>
+            </nav>
 
             <ThemeToggle />
           </div>
         </div>
-      </nav>
+      </header>
 
-      {/* Main content */}
-      <div className="mx-auto max-w-7xl px-8 py-16">
-        {/* Header */}
-        <div className="mb-12 max-w-3xl">
-          <div className="mb-5 inline-flex rounded-full border border-accent/20 bg-accent-soft px-4 py-2 text-sm font-medium text-accent">
-            Compensation Comparison
-          </div>
+      <div className="mx-auto max-w-[1400px] px-6 py-10 lg:px-10">
+        {/* Heading */}
+        <section className="mb-8">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-accent">
+            Compensation Analysis
+          </p>
 
-          <h1 className="text-5xl font-bold tracking-tight md:text-6xl">
-            Compare compensation
-            <br />
-            <span className="text-accent">side by side.</span>
+          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+            Compare Compensation
           </h1>
 
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-muted">
-            Compare base salary, stock, bonus and total compensation across
-            different companies, roles and levels.
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+            Compare compensation components across up to three records.
           </p>
-        </div>
+        </section>
 
-        {/* Manual ID input */}
+        {/* Manual input */}
         <form
-          onSubmit={handleManualCompare}
-          className="
-            mb-12
-            max-w-3xl
-            rounded-2xl
-            border
-            border-border
-            bg-surface
-            p-6
-          "
+          onSubmit={handleSubmit}
+          className="mb-8 border-y border-border py-6"
         >
           <label
             htmlFor="record-ids"
-            className="mb-2 block text-sm font-medium text-muted"
+            className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-muted"
           >
-            COMPENSATION RECORD IDS
+            Record IDs
           </label>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex max-w-2xl gap-3">
             <input
               id="record-ids"
-              type="text"
               value={ids}
               onChange={(event) => setIds(event.target.value)}
               placeholder="Example: 1, 2, 3"
               className="
+                h-11
                 min-w-0
                 flex-1
-                rounded-xl
+                rounded-lg
                 border
                 border-border
-                bg-background
-                px-5
-                py-4
-                text-[15px]
+                bg-surface
+                px-4
+                text-sm
                 text-foreground
                 placeholder:text-muted
-                transition-all
-                duration-200
                 focus:border-accent
-                focus:ring-4
+                focus:ring-2
                 focus:ring-accent-soft
               "
             />
@@ -239,288 +221,221 @@ export default function ComparePage() {
             <button
               type="submit"
               className="
-                rounded-xl
+                rounded-lg
                 bg-accent
-                px-6
-                py-4
+                px-5
+                text-sm
                 font-semibold
                 text-white
-                transition-all
-                duration-200
                 hover:bg-accent-hover
-                active:scale-[0.98]
-                cursor-pointer
               "
             >
               Compare
             </button>
           </div>
 
-          <p className="mt-3 text-sm text-muted">
-            Enter up to 3 compensation record IDs separated by commas.
+          <p className="mt-2 text-xs text-muted">
+            Enter up to three compensation record IDs.
           </p>
         </form>
 
-        {/* Loading */}
         {loading && (
-          <div className="rounded-2xl border border-border bg-surface p-10 text-center">
-            <p className="text-muted">Loading comparison...</p>
+          <div className="border border-border bg-surface px-6 py-12 text-center text-sm text-muted">
+            Loading comparison...
           </div>
         )}
 
-        {/* Error */}
         {!loading && error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300">
+          <div className="border border-danger/30 bg-surface px-6 py-10 text-center text-sm text-danger">
             {error}
           </div>
         )}
 
-        {/* No records */}
         {!loading && !error && records.length === 0 && (
-          <div className="rounded-2xl border border-border bg-surface p-12 text-center">
-            <div className="mb-4 text-4xl">⇄</div>
-
-            <h2 className="text-2xl font-semibold">
-              Select compensation records to compare
+          <div className="border border-border bg-surface px-6 py-12 text-center">
+            <h2 className="text-lg font-semibold">
+              No comparison selected
             </h2>
 
-            <p className="mx-auto mt-3 max-w-lg text-muted">
-              Go to the Explorer, select up to three records, and compare
-              their compensation side by side.
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted">
+              Select records from the Explorer to compare compensation side
+              by side.
             </p>
 
             <Link
               href="/"
-              className="
-                mt-6
-                inline-flex
-                rounded-xl
-                bg-accent
-                px-6
-                py-3
-                font-semibold
-                text-white
-                transition-colors
-                hover:bg-accent-hover
-              "
+              className="mt-5 inline-flex rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover"
             >
               Open Explorer
             </Link>
           </div>
         )}
 
-        {/* Comparison */}
         {!loading && !error && records.length > 0 && (
-          <div className="space-y-8">
-            {/* Summary cards */}
-            <div className="grid gap-5 md:grid-cols-3">
+          <section>
+            {/* Record headers */}
+            <div
+              className={`grid gap-px border border-border bg-border ${
+                records.length === 1
+                  ? "md:grid-cols-1"
+                  : records.length === 2
+                    ? "md:grid-cols-2"
+                    : "md:grid-cols-3"
+              }`}
+            >
               {records.map((record) => (
                 <div
                   key={record.id}
-                  className="
-                    rounded-2xl
-                    border
-                    border-border
-                    bg-surface
-                    p-6
-                  "
+                  className="bg-surface px-6 py-6"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="rounded-lg bg-accent-soft px-3 py-1.5 text-xs font-semibold text-accent">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-semibold">
+                        {record.company.name}
+                      </p>
+
+                      <p className="mt-1 text-sm text-muted">
+                        {record.role.name}
+                      </p>
+                    </div>
+
+                    <span className="rounded-md bg-accent-soft px-2 py-1 text-xs font-semibold text-accent">
                       {record.level.name}
                     </span>
-
-                    <span className="text-xs text-muted">
-                      #{record.id}
-                    </span>
                   </div>
 
-                  <h2 className="mt-5 text-xl font-semibold">
-                    {record.company.name}
-                  </h2>
-
-                  <p className="mt-1 text-sm text-muted">
-                    {record.role.name}
+                  <p className="mt-4 text-xs text-muted">
+                    {record.location.city},{" "}
+                    {record.location.country}
                   </p>
 
-                  <p className="mt-1 text-sm text-muted">
-                    {record.location.city}, {record.location.country}
+                  <p className="mt-6 text-xs uppercase tracking-wide text-muted">
+                    Total Compensation
                   </p>
 
-                  <div className="mt-6 border-t border-border pt-5">
-                    <p className="text-sm text-muted">
-                      Total Compensation
-                    </p>
-
-                    <p className="mt-1 text-3xl font-bold text-accent">
-                      {formatSalary(
-                        record.totalCompensation,
-                        record.currency
-                      )}
-                    </p>
-                  </div>
+                  <p className="mt-1 text-2xl font-bold">
+                    {formatSalary(
+                      record.totalCompensation,
+                      record.currency
+                    )}
+                  </p>
                 </div>
               ))}
             </div>
 
-            {/* Detailed comparison */}
-            <div className="overflow-hidden rounded-2xl border border-border bg-surface">
-              <div className="border-b border-border px-6 py-5">
-                <h2 className="text-xl font-semibold">
-                  Compensation Breakdown
-                </h2>
+            {/* Comparison table */}
+            <div className="mt-8 overflow-x-auto border border-border bg-surface">
+              <table className="w-full min-w-[700px] border-collapse">
+                <thead>
+                  <tr className="border-b border-border bg-surface-muted">
+                    <th className="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-muted">
+                      Metric
+                    </th>
 
-                <p className="mt-1 text-sm text-muted">
-                  Compare the components that make up total compensation.
-                </p>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] border-collapse">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="px-6 py-5 text-left text-sm font-semibold text-muted">
-                        Metric
+                    {records.map((record) => (
+                      <th
+                        key={record.id}
+                        className="px-5 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted"
+                      >
+                        {record.company.name}
                       </th>
+                    ))}
+                  </tr>
+                </thead>
 
-                      {records.map((record) => (
-                        <th
-                          key={record.id}
-                          className="px-6 py-5 text-left text-sm font-semibold"
-                        >
-                          <div>{record.company.name}</div>
-
-                          <div className="mt-1 font-normal text-muted">
-                            {record.level.name} · {record.role.name}
-                          </div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    <tr className="border-b border-border">
-                      <td className="px-6 py-5 text-sm font-medium">
-                        Base Salary
+                <tbody>
+                  {[
+                    ["Base Salary", "baseSalary"],
+                    ["Stock", "stock"],
+                    ["Bonus", "bonus"],
+                    ["Total Compensation", "totalCompensation"],
+                  ].map(([label, key]) => (
+                    <tr
+                      key={key}
+                      className={`
+                        border-b border-border
+                        ${
+                          key === "totalCompensation"
+                            ? "bg-accent-soft/40"
+                            : ""
+                        }
+                      `}
+                    >
+                      <td className="px-5 py-5 text-sm font-medium">
+                        {label}
                       </td>
 
                       {records.map((record) => (
                         <td
                           key={record.id}
-                          className="px-6 py-5 text-sm"
+                          className={`
+                            px-5
+                            py-5
+                            text-right
+                            text-sm
+                            tabular-nums
+                            ${
+                              key === "totalCompensation"
+                                ? "font-bold text-accent"
+                                : ""
+                            }
+                          `}
                         >
                           {formatSalary(
-                            record.baseSalary,
+                            record[key as keyof Compensation] as
+                              | number
+                              | string,
                             record.currency
                           )}
                         </td>
                       ))}
                     </tr>
+                  ))}
 
-                    <tr className="border-b border-border">
-                      <td className="px-6 py-5 text-sm font-medium">
-                        Stock
+                  <tr className="border-b border-border">
+                    <td className="px-5 py-5 text-sm font-medium">
+                      Location
+                    </td>
+
+                    {records.map((record) => (
+                      <td
+                        key={record.id}
+                        className="px-5 py-5 text-right text-sm text-muted-strong"
+                      >
+                        {record.location.city}
                       </td>
+                    ))}
+                  </tr>
 
-                      {records.map((record) => (
-                        <td
-                          key={record.id}
-                          className="px-6 py-5 text-sm"
-                        >
-                          {formatSalary(record.stock, record.currency)}
-                        </td>
-                      ))}
-                    </tr>
+                  <tr>
+                    <td className="px-5 py-5 text-sm font-medium">
+                      Experience
+                    </td>
 
-                    <tr className="border-b border-border">
-                      <td className="px-6 py-5 text-sm font-medium">
-                        Bonus
+                    {records.map((record) => (
+                      <td
+                        key={record.id}
+                        className="px-5 py-5 text-right text-sm text-muted-strong"
+                      >
+                        {record.yearsExperience != null
+                          ? `${record.yearsExperience} years`
+                          : "Not specified"}
                       </td>
-
-                      {records.map((record) => (
-                        <td
-                          key={record.id}
-                          className="px-6 py-5 text-sm"
-                        >
-                          {formatSalary(record.bonus, record.currency)}
-                        </td>
-                      ))}
-                    </tr>
-
-                    <tr className="border-b border-border bg-accent-soft/40">
-                      <td className="px-6 py-5 text-sm font-bold">
-                        Total Compensation
-                      </td>
-
-                      {records.map((record) => (
-                        <td
-                          key={record.id}
-                          className="px-6 py-5 text-base font-bold text-accent"
-                        >
-                          {formatSalary(
-                            record.totalCompensation,
-                            record.currency
-                          )}
-                        </td>
-                      ))}
-                    </tr>
-
-                    <tr className="border-b border-border">
-                      <td className="px-6 py-5 text-sm font-medium">
-                        Location
-                      </td>
-
-                      {records.map((record) => (
-                        <td
-                          key={record.id}
-                          className="px-6 py-5 text-sm"
-                        >
-                          {record.location.city},{" "}
-                          {record.location.country}
-                        </td>
-                      ))}
-                    </tr>
-
-                    <tr>
-                      <td className="px-6 py-5 text-sm font-medium">
-                        Experience
-                      </td>
-
-                      {records.map((record) => (
-                        <td
-                          key={record.id}
-                          className="px-6 py-5 text-sm"
-                        >
-                          {record.yearsExperience != null
-                            ? `${record.yearsExperience} years`
-                            : "Not specified"}
-                        </td>
-                      ))}
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
-            {/* Back to explorer */}
-            <div>
+            <div className="mt-5">
               <Link
                 href="/"
-                className="
-                  inline-flex
-                  items-center
-                  gap-2
-                  text-sm
-                  font-semibold
-                  text-accent
-                  transition-colors
-                  hover:text-accent-hover
-                "
+                className="text-sm font-medium text-accent hover:text-accent-hover"
               >
                 ← Back to Explorer
               </Link>
             </div>
-          </div>
+          </section>
         )}
       </div>
     </main>

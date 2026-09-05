@@ -9,7 +9,9 @@ export default function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("compscope-theme") as Theme | null;
+    const savedTheme = localStorage.getItem(
+      "compscope-theme"
+    ) as Theme | null;
 
     const initialTheme: Theme =
       savedTheme === "dark" || savedTheme === "light"
@@ -17,15 +19,19 @@ export default function ThemeToggle() {
         : "light";
 
     document.documentElement.dataset.theme = initialTheme;
+
     setTheme(initialTheme);
     setMounted(true);
   }, []);
 
   function toggleTheme() {
-    const nextTheme: Theme = theme === "dark" ? "light" : "dark";
+    const nextTheme: Theme =
+      theme === "light" ? "dark" : "light";
 
     document.documentElement.dataset.theme = nextTheme;
+
     localStorage.setItem("compscope-theme", nextTheme);
+
     setTheme(nextTheme);
   }
 
@@ -33,34 +39,46 @@ export default function ThemeToggle() {
     <button
       type="button"
       onClick={toggleTheme}
-      aria-label={
+      title={
         mounted
-          ? `Switch to ${theme === "dark" ? "light" : "dark"} mode`
+          ? `Switch to ${
+              theme === "light" ? "dark" : "light"
+            } mode`
           : "Toggle theme"
       }
-      title={mounted ? `Switch to ${theme === "dark" ? "light" : "dark"} mode` : "Toggle theme"}
+      aria-label={
+        mounted
+          ? `Switch to ${
+              theme === "light" ? "dark" : "light"
+            } mode`
+          : "Toggle theme"
+      }
       className="
         flex
-        h-10
-        w-10
+        h-9
+        w-9
+        cursor-pointer
         items-center
         justify-center
-        rounded-xl
+        rounded-lg
         border
         border-border
         bg-surface
-        text-lg
-        text-foreground
+        text-sm
+        text-muted-strong
         transition-all
-        duration-200
+        duration-150
         hover:border-accent
         hover:bg-accent-soft
         hover:text-accent
         active:scale-95
-        cursor-pointer
       "
     >
-      {mounted ? (theme === "dark" ? "☀" : "☾") : "☾"}
+      {mounted
+        ? theme === "light"
+          ? "☾"
+          : "☀"
+        : "☾"}
     </button>
   );
 }

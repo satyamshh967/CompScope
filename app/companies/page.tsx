@@ -7,7 +7,6 @@ import ThemeToggle from "../components/theme-toggle";
 type Company = {
   id: number;
   name: string;
-  normalizedName?: string;
   compensationCount?: number;
   _count?: {
     compensations?: number;
@@ -53,74 +52,73 @@ export default function CompaniesPage() {
   );
 
   return (
-    <main className="min-h-screen bg-background text-foreground transition-colors duration-200">
+    <main className="min-h-screen bg-background text-foreground">
       {/* Navigation */}
-      <nav className="border-b border-border bg-background">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-8 py-6">
-          <Link href="/" className="group">
-            <div className="text-2xl font-bold tracking-tight">
+      <header className="border-b border-border bg-surface">
+        <div className="mx-auto flex h-[72px] max-w-[1400px] items-center justify-between px-6 lg:px-10">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="text-[21px] font-bold tracking-tight">
               Comp<span className="text-accent">Scope</span>
             </div>
 
-            <div className="text-sm text-muted">
+            <span className="hidden border-l border-border pl-3 text-xs text-muted md:block">
               Compensation Intelligence
-            </div>
+            </span>
           </Link>
 
-          <div className="flex items-center gap-8">
-            <Link
-              href="/"
-              className="text-sm font-medium text-muted transition-colors hover:text-accent"
-            >
-              Explorer
-            </Link>
+          <div className="flex items-center gap-6">
+            <nav className="flex items-center gap-6">
+              <Link
+                href="/"
+                className="py-[25px] text-sm font-medium text-muted hover:text-foreground"
+              >
+                Explorer
+              </Link>
 
-            <Link
-              href="/companies"
-              className="text-sm font-medium text-accent"
-            >
-              Companies
-            </Link>
+              <Link
+                href="/companies"
+                className="border-b-2 border-accent py-[25px] text-sm font-medium text-foreground"
+              >
+                Companies
+              </Link>
 
-            <Link
-              href="/compare"
-              className="text-sm font-medium text-muted transition-colors hover:text-accent"
-            >
-              Compare
-            </Link>
+              <Link
+                href="/compare"
+                className="py-[25px] text-sm font-medium text-muted hover:text-foreground"
+              >
+                Compare
+              </Link>
+            </nav>
 
             <ThemeToggle />
           </div>
         </div>
-      </nav>
+      </header>
 
-      {/* Main content */}
-      <div className="mx-auto max-w-7xl px-8 py-16">
-        {/* Header */}
-        <div className="mb-12 max-w-3xl">
-          <div className="mb-5 inline-flex rounded-full border border-accent/20 bg-accent-soft px-4 py-2 text-sm font-medium text-accent">
+      <div className="mx-auto max-w-[1400px] px-6 py-10 lg:px-10">
+        {/* Heading */}
+        <div className="mb-8">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-accent">
             Company Intelligence
-          </div>
+          </p>
 
-          <h1 className="text-5xl font-bold tracking-tight md:text-6xl">
-            Explore compensation
-            <br />
-            <span className="text-accent">company by company.</span>
+          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+            Companies
           </h1>
 
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-muted">
-            Compare compensation patterns across companies, engineering levels,
-            roles and locations.
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+            Explore compensation patterns across companies, levels and
+            locations.
           </p>
         </div>
 
         {/* Search */}
-        <div className="mb-10 max-w-2xl">
+        <div className="mb-8 max-w-xl">
           <label
             htmlFor="company-search"
-            className="mb-2 block text-sm font-medium text-muted"
+            className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-muted"
           >
-            SEARCH COMPANIES
+            Search companies
           </label>
 
           <input
@@ -130,146 +128,121 @@ export default function CompaniesPage() {
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search company..."
             className="
+              h-11
               w-full
-              rounded-xl
+              rounded-lg
               border
               border-border
               bg-surface
-              px-5
-              py-4
-              text-[15px]
+              px-4
+              text-sm
               text-foreground
               placeholder:text-muted
-              transition-all
-              duration-200
               focus:border-accent
-              focus:ring-4
+              focus:ring-2
               focus:ring-accent-soft
             "
           />
         </div>
 
-        {/* Loading */}
         {loading && (
-          <div className="rounded-2xl border border-border bg-surface p-10 text-center">
-            <p className="text-muted">Loading companies...</p>
+          <div className="border border-border bg-surface px-6 py-12 text-center text-sm text-muted">
+            Loading companies...
           </div>
         )}
 
-        {/* Error */}
         {!loading && error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300">
+          <div className="border border-danger/30 bg-surface px-6 py-10 text-center text-sm text-danger">
             {error}
           </div>
         )}
 
-        {/* Empty state */}
         {!loading && !error && filteredCompanies.length === 0 && (
-          <div className="rounded-2xl border border-border bg-surface p-12 text-center">
-            <div className="mb-3 text-3xl">⌕</div>
+          <div className="border border-border bg-surface px-6 py-12 text-center">
+            <h2 className="font-semibold">No companies found</h2>
 
-            <h2 className="text-xl font-semibold">
-              No companies found
-            </h2>
-
-            <p className="mt-2 text-muted">
-              Try searching for a different company.
+            <p className="mt-2 text-sm text-muted">
+              Try a different search term.
             </p>
           </div>
         )}
 
-        {/* Company grid */}
         {!loading && !error && filteredCompanies.length > 0 && (
           <>
-            <div className="mb-5 flex items-center justify-between">
+            <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold">
-                  Companies
+                <h2 className="text-lg font-semibold">
+                  Company Directory
                 </h2>
 
-                <p className="mt-1 text-sm text-muted">
-                  {filteredCompanies.length}{" "}
-                  {filteredCompanies.length === 1
-                    ? "company"
-                    : "companies"}
+                <p className="mt-1 text-xs text-muted">
+                  {filteredCompanies.length} companies
                 </p>
               </div>
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredCompanies.map((company) => {
-                const compensationCount =
-                  company.compensationCount ??
-                  company._count?.compensations ??
-                  0;
+            <div className="overflow-hidden border border-border bg-surface">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-border bg-surface-muted">
+                    <th className="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-muted">
+                      Company
+                    </th>
 
-                return (
-                  <Link
-                    key={company.id}
-                    href={`/companies/${company.id}`}
-                    className="
-                      group
-                      rounded-2xl
-                      border
-                      border-border
-                      bg-surface
-                      p-6
-                      transition-all
-                      duration-200
-                      hover:-translate-y-0.5
-                      hover:border-accent/40
-                      hover:shadow-sm
-                    "
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div
-                        className="
-                          flex
-                          h-12
-                          w-12
-                          shrink-0
-                          items-center
-                          justify-center
-                          rounded-xl
-                          bg-accent-soft
-                          text-lg
-                          font-bold
-                          text-accent
-                        "
+                    <th className="px-5 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted">
+                      Compensation Records
+                    </th>
+
+                    <th className="w-20 px-5 py-3" />
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filteredCompanies.map((company) => {
+                    const count =
+                      company.compensationCount ??
+                      company._count?.compensations ??
+                      0;
+
+                    return (
+                      <tr
+                        key={company.id}
+                        className="border-b border-border transition-colors hover:bg-surface-muted"
                       >
-                        {company.name.charAt(0).toUpperCase()}
-                      </div>
+                        <td className="px-5 py-5">
+                          <Link
+                            href={`/companies/${company.id}`}
+                            className="group flex items-center gap-4"
+                          >
+                            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-accent-soft text-sm font-bold text-accent">
+                              {company.name
+                                .charAt(0)
+                                .toUpperCase()}
+                            </div>
 
-                      <span
-                        className="
-                          text-xl
-                          text-muted
-                          transition-transform
-                          duration-200
-                          group-hover:translate-x-1
-                          group-hover:text-accent
-                        "
-                      >
-                        →
-                      </span>
-                    </div>
+                            <span className="text-sm font-semibold group-hover:text-accent">
+                              {company.name}
+                            </span>
+                          </Link>
+                        </td>
 
-                    <h3 className="mt-6 text-xl font-semibold">
-                      {company.name}
-                    </h3>
+                        <td className="px-5 py-5 text-right text-sm tabular-nums text-muted-strong">
+                          {count}
+                        </td>
 
-                    <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-                      <span className="text-sm text-muted">
-                        Compensation records
-                      </span>
-
-                      <span className="text-sm font-semibold text-foreground">
-                        {compensationCount}
-                      </span>
-                    </div>
-                  </Link>
-                );
-              })}
+                        <td className="px-5 py-5 text-right">
+                          <Link
+                            href={`/companies/${company.id}`}
+                            className="text-sm font-medium text-accent hover:text-accent-hover"
+                          >
+                            View →
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </>
         )}
